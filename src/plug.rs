@@ -1,37 +1,78 @@
-use crate::crypto;
 use crate::error::Result;
 
-use std::net::{IpAddr, SocketAddr, UdpSocket};
-use std::time::Duration;
+use crate::proto::Proto;
+use std::net::IpAddr;
 
 #[derive(Debug)]
-pub struct Plug {
-    addr: SocketAddr,
+pub struct HS100 {
+    proto: Proto,
 }
 
-impl Plug {
-    pub fn new<A>(addr: A) -> Plug
+impl HS100 {
+    pub fn new<A>(host: A) -> HS100
+    where
+        A: Into<IpAddr>,
+    {
+        HS100 {
+            proto: Proto::new(host.into()),
+        }
+    }
+}
+
+impl System for HS100 {
+    fn sys_info(&self) -> Result<String> {
+        self.proto
+            .send(&system!({"get_sysinfo":{}}))
+            .map(|res| unsafe { String::from_utf8_unchecked(res) })
+    }
+
+    fn turn_on(&self) -> Result<String> {
+        self.proto
+            .send(&system!({"set_relay_state":{"state":1}}))
+            .map(|res| unsafe { String::from_utf8_unchecked(res) })
+    }
+
+    fn turn_off(&self) -> Result<String> {
+        self.proto
+            .send(&system!({"set_relay_state":{"state":0}}))
+            .map(|res| unsafe { String::from_utf8_unchecked(res) })
+    }
+}
+
+pub trait System {
+    fn sys_info(&self) -> Result<String>;
+    fn turn_on(&self) -> Result<String>;
+    fn turn_off(&self) -> Result<String>;
+}
+
+pub struct Plug<T> {
+    model: T,
+}
+
+impl Plug<HS100> {
+    pub fn new<A>(addr: A) -> Plug<HS100>
     where
         A: Into<IpAddr>,
     {
         Plug {
-            addr: SocketAddr::new(addr.into(), 9999),
+            model: HS100::new(addr),
         }
     }
+}
 
-    pub fn get_sys_info(&self) -> Result<String> {
-        let socket = UdpSocket::bind("0.0.0.0:1234")?;
-        socket.set_read_timeout(Some(Duration::from_secs(3)))?;
-        socket.send_to(&system!({"get_sysinfo":{}}), self.addr)?;
+impl<T> Plug<T>
+where
+    T: System,
+{
+    pub fn sys_info(&self) -> Result<String> {
+        self.model.sys_info()
+    }
 
-        let mut buf = [0; 4096];
-        match socket.recv(&mut buf) {
-            Ok(recv) => {
-                println!("read {} bytes", recv);
-                let bytes = crypto::decrypt(&buf[..recv]);
-                Ok(unsafe { String::from_utf8_unchecked(bytes) })
-            }
-            Err(e) => Err(e.into()),
-        }
+    pub fn turn_on(&self) -> Result<String> {
+        self.model.turn_on()
+    }
+
+    pub fn turn_off(&self) -> Result<String> {
+        self.model.turn_off()
     }
 }

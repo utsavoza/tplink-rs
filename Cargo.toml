@@ -3,6 +3,7 @@ name = "tplink"
 version = "0.1.0"
 authors = ["Utsav Oza <utsavoza96@gmail.com>"]
 edition = "2018"
+license = "MIT or Apache-2.0"
 
 [dependencies]
 serde_json = "1.0"

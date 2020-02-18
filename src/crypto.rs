@@ -1,7 +1,7 @@
 const INITIAL_KEY: u8 = 0xAB;
 
 /// Encrypts input bytes where each byte is XOR'ed with the previous encrypted byte.
-pub fn encrypt(bytes: &[u8]) -> Vec<u8> {
+pub(crate) fn encrypt(bytes: &[u8]) -> Vec<u8> {
     let mut key = INITIAL_KEY;
     bytes
         .iter()
@@ -14,7 +14,7 @@ pub fn encrypt(bytes: &[u8]) -> Vec<u8> {
 
 /// Encrypts input bytes with a 4 bytes big-endian length header where each byte is
 /// XOR'ed with the previous encrypted byte.
-pub fn encrypt_with_header(bytes: &[u8]) -> Vec<u8> {
+pub(crate) fn encrypt_with_header(bytes: &[u8]) -> Vec<u8> {
     let num_bytes = bytes.len();
     let header = (num_bytes as u32).to_be_bytes();
     let mut buf = Vec::with_capacity(header.len() + num_bytes);
@@ -24,7 +24,7 @@ pub fn encrypt_with_header(bytes: &[u8]) -> Vec<u8> {
 }
 
 /// Decrypts input bytes where each byte is XOR'ed with the previous encrypted byte.
-pub fn decrypt(bytes: &[u8]) -> Vec<u8> {
+pub(crate) fn decrypt(bytes: &[u8]) -> Vec<u8> {
     let mut key = INITIAL_KEY;
     bytes
         .iter()
@@ -38,7 +38,7 @@ pub fn decrypt(bytes: &[u8]) -> Vec<u8> {
 
 /// Decrypts input bytes that has a 4 bytes big-endian length header where each byte is
 /// XOR'ed with the previous encrypted byte.
-pub fn decrypt_with_header(bytes: &[u8]) -> Vec<u8> {
+pub(crate) fn decrypt_with_header(bytes: &[u8]) -> Vec<u8> {
     decrypt(
         bytes
             .iter()
