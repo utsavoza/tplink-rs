@@ -1,7 +1,7 @@
 use crate::error::Result;
 
 pub trait System {
-    type Info;
+    type SystemInfo;
 
-    fn sys_info(&self) -> Result<Self::Info>;
+    fn sys_info(&self) -> Result<Self::SystemInfo>;
 }

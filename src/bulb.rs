@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::proto::{self, Proto};
 use crate::system::System;
 
@@ -27,7 +27,7 @@ impl<T> Bulb<T>
 where
     T: System,
 {
-    pub fn sys_info(&self) -> Result<T::Info> {
+    pub fn sys_info(&self) -> Result<T::SystemInfo> {
         self.model.sys_info()
     }
 }
@@ -48,9 +48,9 @@ impl LB110 {
 }
 
 impl System for LB110 {
-    type Info = SystemInfo;
+    type SystemInfo = LB110Info;
 
-    fn sys_info(&self) -> Result<Self::Info> {
+    fn sys_info(&self) -> Result<Self::SystemInfo> {
         self.proto
             .send_command(&json!({"system":{"get_sysinfo":{}}}))
             .map(|res| {
@@ -64,16 +64,16 @@ impl System for LB110 {
 #[derive(Debug, Serialize, Deserialize)]
 struct Response {
     #[serde(rename = "system")]
-    sys_info: SystemInfo,
+    sys_info: LB110Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SystemInfo {
+pub struct LB110Info {
     #[serde(rename = "get_sysinfo")]
     values: HashMap<String, Value>,
 }
 
-impl SystemInfo {
+impl LB110Info {
     pub fn sw_ver(&self) -> Option<String> {
         self.get_string("sw_ver")
     }
@@ -107,7 +107,7 @@ impl SystemInfo {
     }
 }
 
-impl fmt::Display for SystemInfo {
+impl fmt::Display for LB110Info {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(&self.values).unwrap())
     }
