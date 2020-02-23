@@ -12,3 +12,7 @@ serde = { version = "1.0", features = ["derive"] }
 [[example]]
 name = "plug"
 path = "examples/plug.rs"
+
+[[example]]
+name = "bulb"
+path = "examples/bulb.rs"

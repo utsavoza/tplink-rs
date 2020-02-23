@@ -1,9 +1,9 @@
-//! `cargo run --example plug`
+//! `cargo run --example bulb`
 
 fn main() {
-    let plug = tplink::Plug::new([192, 168, 1, 100]);
+    let bulb = tplink::Bulb::new([192, 168, 1, 101]);
 
-    let sys_info = plug.sys_info().unwrap();
+    let sys_info = bulb.sys_info().unwrap();
     println!("{}", sys_info);
 
     let sw_ver = sys_info.sw_ver().unwrap();
