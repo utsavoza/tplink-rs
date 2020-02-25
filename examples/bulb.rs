@@ -1,6 +1,8 @@
 //! `cargo run --example bulb`
 
 fn main() {
+    env_logger::init();
+
     let bulb = tplink::Bulb::new([192, 168, 1, 101]);
 
     let sys_info = bulb.sys_info().unwrap();
@@ -25,5 +27,9 @@ fn main() {
     println!("device_type: {}", device_type);
 
     let mac_address = sys_info.mac_address().unwrap();
-    println!("mac_adress: {}", mac_address);
+    println!("mac_address: {}", mac_address);
+
+    bulb.turn_on().unwrap();
+
+    bulb.turn_off().unwrap();
 }
