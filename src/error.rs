@@ -49,3 +49,7 @@ impl From<io::Error> for Error {
         Error::new(ErrorKind::Io(e))
     }
 }
+
+pub(crate) fn json(e: serde_json::Error) -> Error {
+    Error::new(ErrorKind::Json(e))
+}

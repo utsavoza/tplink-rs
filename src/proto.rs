@@ -1,6 +1,7 @@
 use crate::crypto;
-use crate::error::Result;
+use crate::error::{self, Result};
 
+use serde_json::Value;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
@@ -64,9 +65,10 @@ pub(crate) struct Proto {
 }
 
 impl Proto {
-    pub(crate) fn send_value(&self, value: &serde_json::Value) -> Result<Vec<u8>> {
+    pub(crate) fn send_value(&self, value: &Value) -> Result<Value> {
         let bytes = serde_json::to_vec(value).unwrap();
         self.send_bytes(&crypto::encrypt(&bytes))
+            .map(|res| serde_json::from_slice::<Value>(&res).map_err(error::json))?
     }
 
     pub(crate) fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {

@@ -28,8 +28,4 @@ fn main() {
 
     let mac_address = sys_info.mac_address().unwrap();
     println!("mac_address: {}", mac_address);
-
-    bulb.turn_on().unwrap();
-
-    bulb.turn_off().unwrap();
 }

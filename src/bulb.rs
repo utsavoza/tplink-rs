@@ -3,7 +3,6 @@ use crate::error::Result;
 use crate::proto::{self, Proto};
 use crate::system::System;
 
-use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -63,27 +62,9 @@ impl System for LB110 {
         self.proto
             .send_value(&json!({"system":{"get_sysinfo":{}}}))
             .map(|res| {
-                serde_json::from_slice::<Response>(&res)
+                serde_json::from_value::<Response>(res)
                     .expect("invalid system response")
                     .sys_info
-            })
-    }
-}
-
-impl Device for LB110 {
-    fn turn_on(&self) -> Result<()> {
-        self.proto.send_value(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 1}}}))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => info!("[device]: {}", res),
-                Err(e) => warn!("[device]: {}", e),
-            })
-    }
-
-    fn turn_off(&self) -> Result<()> {
-        self.proto.send_value(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 0}}}))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => info!("[device]: {}", res),
-                Err(e) => warn!("[device]: {}", e),
             })
     }
 }

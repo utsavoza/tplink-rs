@@ -28,8 +28,4 @@ fn main() {
 
     let mac_address = sys_info.mac_address().unwrap();
     println!("mac_address: {}", mac_address);
-
-    plug.turn_on().unwrap();
-
-    plug.turn_off().unwrap();
 }
