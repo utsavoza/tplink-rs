@@ -1,3 +1,4 @@
+mod cache;
 mod crypto;
 mod device;
 mod proto;
@@ -8,5 +9,5 @@ pub mod error;
 pub mod plug;
 
 pub use crate::bulb::Bulb;
-pub use crate::error::Result;
+pub use crate::error::{Error, ErrorKind, Result};
 pub use crate::plug::Plug;

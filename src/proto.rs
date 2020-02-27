@@ -7,7 +7,7 @@ use std::time::Duration;
 pub(crate) struct Builder {
     host: IpAddr,
     port: u16,
-    buffer_size: Option<usize>,
+    buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
 }
@@ -20,7 +20,7 @@ impl Builder {
         Builder {
             host: host.into(),
             port: 9999,
-            buffer_size: Some(4096),
+            buffer_size: 4096,
             read_timeout: Some(Duration::from_secs(3)),
             write_timeout: Some(Duration::from_secs(3)),
         }
@@ -31,7 +31,7 @@ impl Builder {
         self
     }
 
-    pub(crate) fn buffer_size(&mut self, buffer_size: Option<usize>) -> &mut Builder {
+    pub(crate) fn buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
         self.buffer_size = buffer_size;
         self
     }
@@ -58,24 +58,24 @@ impl Builder {
 
 pub(crate) struct Proto {
     host: SocketAddr,
-    buffer_size: Option<usize>,
+    buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
 }
 
 impl Proto {
-    pub(crate) fn send_command(&self, value: &serde_json::Value) -> Result<Vec<u8>> {
+    pub(crate) fn send_value(&self, value: &serde_json::Value) -> Result<Vec<u8>> {
         let bytes = serde_json::to_vec(value).unwrap();
-        self.send(&crypto::encrypt(&bytes))
+        self.send_bytes(&crypto::encrypt(&bytes))
     }
 
-    fn send(&self, bytes: &[u8]) -> Result<Vec<u8>> {
+    pub(crate) fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
         socket.send_to(bytes, self.host)?;
 
-        let mut buf = vec![0; self.buffer_size.unwrap()];
+        let mut buf = vec![0; self.buffer_size];
         match socket.recv(&mut buf) {
             Ok(recv) => Ok(crypto::decrypt(&buf[..recv])),
             Err(e) => Err(e.into()),

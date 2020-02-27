@@ -1,8 +1,8 @@
+use crate::device::Device;
 use crate::error::Result;
 use crate::proto::{self, Proto};
 use crate::system::System;
 
-use crate::device::Device;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -61,7 +61,7 @@ impl System for LB110 {
 
     fn sys_info(&self) -> Result<Self::SystemInfo> {
         self.proto
-            .send_command(&json!({"system":{"get_sysinfo":{}}}))
+            .send_value(&json!({"system":{"get_sysinfo":{}}}))
             .map(|res| {
                 serde_json::from_slice::<Response>(&res)
                     .expect("invalid system response")
@@ -72,7 +72,7 @@ impl System for LB110 {
 
 impl Device for LB110 {
     fn turn_on(&self) -> Result<()> {
-        self.proto.send_command(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 1}}}))
+        self.proto.send_value(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 1}}}))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => info!("[device]: {}", res),
                 Err(e) => warn!("[device]: {}", e),
@@ -80,7 +80,7 @@ impl Device for LB110 {
     }
 
     fn turn_off(&self) -> Result<()> {
-        self.proto.send_command(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 0}}}))
+        self.proto.send_value(&json!({"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off": 0}}}))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => info!("[device]: {}", res),
                 Err(e) => warn!("[device]: {}", e),

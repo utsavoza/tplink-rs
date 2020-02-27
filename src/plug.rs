@@ -61,7 +61,7 @@ impl System for HS100 {
 
     fn sys_info(&self) -> Result<Self::SystemInfo> {
         self.proto
-            .send_command(&json!({"system":{"get_sysinfo":{}}}))
+            .send_value(&json!({"system":{"get_sysinfo":{}}}))
             .map(|res| {
                 serde_json::from_slice::<Response>(&res)
                     .expect("invalid system response")
@@ -73,7 +73,7 @@ impl System for HS100 {
 impl Device for HS100 {
     fn turn_on(&self) -> Result<()> {
         self.proto
-            .send_command(&json!({"system":{"set_relay_state":{"state":1}}}))
+            .send_value(&json!({"system":{"set_relay_state":{"state":1}}}))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => info!("[device]: {}", res),
                 Err(e) => warn!("[device]: {}", e),
@@ -82,7 +82,7 @@ impl Device for HS100 {
 
     fn turn_off(&self) -> Result<()> {
         self.proto
-            .send_command(&json!({"system":{"set_relay_state":{"state":0}}}))
+            .send_value(&json!({"system":{"set_relay_state":{"state":0}}}))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => info!("[device]: {}", res),
                 Err(e) => warn!("[device]: {}", e),

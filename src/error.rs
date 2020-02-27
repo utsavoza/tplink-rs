@@ -1,30 +1,51 @@
-use std::{error, fmt, io};
+use std::error::Error as StdError;
+use std::fmt;
+use std::io;
+use std::result;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
-pub enum Error {
-    Io(io::Error),
+pub struct Error {
+    kind: ErrorKind,
 }
 
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::Io(e)
+impl Error {
+    pub(crate) fn new(kind: ErrorKind) -> Error {
+        Error { kind }
     }
+
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+}
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    Io(io::Error),
+    Json(serde_json::Error),
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Io(e) => write!(f, "IO error: {}", e),
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            ErrorKind::Io(ref e) => e.fmt(f),
+            ErrorKind::Json(ref e) => e.fmt(f),
         }
     }
 }
 
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            Error::Io(e) => Some(e),
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self.kind {
+            ErrorKind::Io(ref e) => Some(e),
+            ErrorKind::Json(ref e) => Some(e),
         }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Error {
+        Error::new(ErrorKind::Io(e))
     }
 }
