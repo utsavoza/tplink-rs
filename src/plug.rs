@@ -53,7 +53,7 @@ impl HS100 {
         let proto = proto::Builder::new(host)
             .read_timeout(Duration::from_secs(3))
             .write_timeout(Duration::from_secs(3))
-            .enable_cache(Duration::from_secs(3), None)
+            .cache_config(Duration::from_secs(3), None)
             .build();
 
         HS100 { proto }
