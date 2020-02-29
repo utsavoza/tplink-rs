@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 enum Status {
     NotFound,
@@ -11,25 +11,25 @@ enum Status {
 
 pub struct Cache<K, V> {
     store: HashMap<K, (Instant, V)>,
-    ttl: u64,
+    ttl: Duration,
     hits: u32,
     misses: u32,
 }
 
 impl<K: Hash + Eq, V> Cache<K, V> {
-    pub fn with_ttl(seconds: u64) -> Cache<K, V> {
+    pub fn with_ttl(duration: Duration) -> Cache<K, V> {
         Cache {
             store: HashMap::new(),
-            ttl: seconds,
+            ttl: duration,
             hits: 0,
             misses: 0,
         }
     }
 
-    pub fn with_ttl_and_capacity(seconds: u64, capacity: usize) -> Cache<K, V> {
+    pub fn with_ttl_and_capacity(duration: Duration, capacity: usize) -> Cache<K, V> {
         Cache {
             store: HashMap::with_capacity(capacity),
-            ttl: seconds,
+            ttl: duration,
             hits: 0,
             misses: 0,
         }
@@ -43,7 +43,7 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         let status = {
             let val = self.store.get(key);
             if let Some(&(instant, _)) = val {
-                if instant.elapsed().as_secs() < self.ttl {
+                if instant.elapsed() < self.ttl {
                     Status::Found
                 } else {
                     Status::Expired
@@ -96,7 +96,7 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         Some(self.misses)
     }
 
-    pub fn ttl(&self) -> Option<u64> {
+    pub fn ttl(&self) -> Option<Duration> {
         Some(self.ttl)
     }
 }

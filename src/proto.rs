@@ -1,7 +1,8 @@
+use crate::cache::Cache;
 use crate::crypto;
 use crate::error::{self, Result};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
@@ -11,7 +12,10 @@ pub(crate) struct Builder {
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
+    cache_config: Option<CacheConfig>,
 }
+
+struct CacheConfig(Duration, Option<usize>);
 
 impl Builder {
     pub(crate) fn new<A>(host: A) -> Builder
@@ -22,8 +26,9 @@ impl Builder {
             host: host.into(),
             port: 9999,
             buffer_size: 4096,
-            read_timeout: Some(Duration::from_secs(3)),
-            write_timeout: Some(Duration::from_secs(3)),
+            read_timeout: None,
+            write_timeout: None,
+            cache_config: None,
         }
     }
 
@@ -37,22 +42,42 @@ impl Builder {
         self
     }
 
-    pub(crate) fn read_timeout(&mut self, read_timeout: Option<Duration>) -> &mut Builder {
-        self.read_timeout = read_timeout;
+    pub(crate) fn read_timeout(&mut self, duration: Duration) -> &mut Builder {
+        self.read_timeout = Some(duration);
         self
     }
 
-    pub(crate) fn write_timeout(&mut self, write_timeout: Option<Duration>) -> &mut Builder {
-        self.write_timeout = write_timeout;
+    pub(crate) fn write_timeout(&mut self, duration: Duration) -> &mut Builder {
+        self.write_timeout = Some(duration);
         self
     }
 
-    pub(crate) fn build(self) -> Proto {
+    pub(crate) fn enable_cache(
+        &mut self,
+        ttl: Duration,
+        initial_capacity: Option<usize>,
+    ) -> &mut Builder {
+        self.cache_config = Some(CacheConfig(ttl, initial_capacity));
+        self
+    }
+
+    pub(crate) fn build(&mut self) -> Proto {
+        let cache = self.cache_config.as_ref().map_or_else(
+            || None,
+            |CacheConfig(ttl, initial_capacity)| {
+                initial_capacity.map_or_else(
+                    || Some(Cache::with_ttl(*ttl)),
+                    |capacity| Some(Cache::with_ttl_and_capacity(*ttl, capacity)),
+                )
+            },
+        );
+
         Proto {
             host: SocketAddr::new(self.host, self.port),
             buffer_size: self.buffer_size,
             read_timeout: self.read_timeout,
             write_timeout: self.write_timeout,
+            response_cache: cache,
         }
     }
 }
@@ -62,16 +87,18 @@ pub(crate) struct Proto {
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
+    response_cache: Option<Cache<String, Vec<u8>>>,
 }
 
 impl Proto {
-    pub(crate) fn send_value(&self, value: &Value) -> Result<Value> {
-        let bytes = serde_json::to_vec(value).unwrap();
-        self.send_bytes(&crypto::encrypt(&bytes))
-            .map(|res| serde_json::from_slice::<Value>(&res).map_err(error::json))?
+    pub(crate) fn send(&self, target: &str, cmd: &str, arg: Option<&Value>) -> Result<Vec<u8>> {
+        let bytes = serde_json::to_vec(&json!({target:{cmd:arg}}))
+            .map(|bytes| crypto::encrypt(&bytes))
+            .map_err(error::json)?;
+        self.send_bytes(&bytes)
     }
 
-    pub(crate) fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {
+    fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;

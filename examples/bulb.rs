@@ -3,7 +3,7 @@
 fn main() {
     env_logger::init();
 
-    let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
 
     let sys_info = bulb.sys_info().unwrap();
     println!("{}", sys_info);

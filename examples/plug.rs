@@ -3,7 +3,7 @@
 fn main() {
     env_logger::init();
 
-    let plug = tplink::Plug::new([192, 168, 1, 100]);
+    let mut plug = tplink::Plug::new([192, 168, 1, 100]);
 
     let sys_info = plug.sys_info().unwrap();
     println!("sys_info: {}", sys_info);

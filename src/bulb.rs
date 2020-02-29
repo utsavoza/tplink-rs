@@ -1,13 +1,14 @@
 use crate::device::Device;
-use crate::error::Result;
+use crate::error::{self, Result};
 use crate::proto::{self, Proto};
 use crate::system::System;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
+use std::time::Duration;
 
 pub struct Bulb<T> {
     model: T,
@@ -25,7 +26,7 @@ impl Bulb<LB110> {
 }
 
 impl<T: System> Bulb<T> {
-    pub fn sys_info(&self) -> Result<T::SystemInfo> {
+    pub fn sys_info(&mut self) -> Result<T::SystemInfo> {
         self.model.sys_info()
     }
 }
@@ -49,23 +50,25 @@ impl LB110 {
     where
         A: Into<IpAddr>,
     {
-        LB110 {
-            proto: proto::Builder::new(host).build(),
-        }
+        let proto = proto::Builder::new(host)
+            .read_timeout(Duration::from_secs(3))
+            .write_timeout(Duration::from_secs(3))
+            .enable_cache(Duration::from_secs(3), None)
+            .build();
+
+        LB110 { proto }
     }
 }
 
 impl System for LB110 {
     type SystemInfo = LB110Info;
 
-    fn sys_info(&self) -> Result<Self::SystemInfo> {
-        self.proto
-            .send_value(&json!({"system":{"get_sysinfo":{}}}))
-            .map(|res| {
-                serde_json::from_value::<Response>(res)
-                    .expect("invalid system response")
-                    .sys_info
-            })
+    fn sys_info(&mut self) -> Result<Self::SystemInfo> {
+        self.proto.send("system", "get_sysinfo", None).map(|res| {
+            serde_json::from_slice::<Response>(&res)
+                .map(|res| res.sys_info)
+                .map_err(error::json)
+        })?
     }
 }
 
