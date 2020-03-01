@@ -1,9 +1,5 @@
 #[allow(dead_code)]
-mod cache;
-
-#[allow(dead_code)]
 mod crypto;
-
 mod device;
 mod proto;
 mod system;

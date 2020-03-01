@@ -1,14 +1,14 @@
 use crate::device::Device;
-use crate::error::{self, Result};
+use crate::error::Result;
 use crate::proto::{self, Proto};
 use crate::system::System;
 
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
-use std::time::Duration;
 
 pub struct Plug<T> {
     model: T,
@@ -29,14 +29,18 @@ impl<T: System> Plug<T> {
     pub fn sys_info(&mut self) -> Result<T::SystemInfo> {
         self.model.sys_info()
     }
+
+    pub fn reboot(&mut self) -> Result<()> {
+        self.model.reboot()
+    }
 }
 
 impl<T: Device> Plug<T> {
-    pub fn turn_on(&self) -> Result<()> {
+    pub fn turn_on(&mut self) -> Result<()> {
         self.model.turn_on()
     }
 
-    pub fn turn_off(&self) -> Result<()> {
+    pub fn turn_off(&mut self) -> Result<()> {
         self.model.turn_off()
     }
 }
@@ -50,13 +54,9 @@ impl HS100 {
     where
         A: Into<IpAddr>,
     {
-        let proto = proto::Builder::new(host)
-            .read_timeout(Duration::from_secs(3))
-            .write_timeout(Duration::from_secs(3))
-            .cache_config(Duration::from_secs(3), None)
-            .build();
-
-        HS100 { proto }
+        HS100 {
+            proto: proto::Builder::default(host),
+        }
     }
 }
 
@@ -65,10 +65,46 @@ impl System for HS100 {
 
     fn sys_info(&mut self) -> Result<Self::SystemInfo> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
-            serde_json::from_slice::<Response>(&res)
-                .map(|res| res.sys_info)
-                .map_err(error::json)
-        })?
+            match serde_json::from_slice::<Response>(&res) {
+                Ok(res) => {
+                    debug!("{}", res);
+                    res.sys_info
+                }
+                Err(e) => {
+                    error!("{}", e);
+                    unreachable!()
+                }
+            }
+        })
+    }
+
+    fn reboot(&mut self) -> Result<()> {
+        self.proto
+            .send("system", "reboot", Some(&json!({"delay":1})))
+            .map(|res| match String::from_utf8(res) {
+                Ok(res) => debug!("{}", res),
+                Err(e) => error!("{}", e),
+            })
+    }
+}
+
+impl Device for HS100 {
+    fn turn_on(&mut self) -> Result<()> {
+        self.proto
+            .send("system", "set_relay_state", Some(&json!({"state":1})))
+            .map(|res| match String::from_utf8(res) {
+                Ok(res) => debug!("{}", res),
+                Err(e) => error!("{}", e),
+            })
+    }
+
+    fn turn_off(&mut self) -> Result<()> {
+        self.proto
+            .send("system", "set_relay_state", Some(&json!({"state":0})))
+            .map(|res| match String::from_utf8(res) {
+                Ok(res) => debug!("{}", res),
+                Err(e) => error!("{}", e),
+            })
     }
 }
 
@@ -121,5 +157,11 @@ impl HS100Info {
 impl fmt::Display for HS100Info {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(&self.values).unwrap())
+    }
+}
+
+impl fmt::Display for Response {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(&self).unwrap())
     }
 }
