@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
+use std::time::Duration;
 
 pub struct Plug<T> {
     model: T,
@@ -30,8 +31,12 @@ impl<T: System> Plug<T> {
         self.model.sys_info()
     }
 
-    pub fn reboot(&mut self) -> Result<()> {
-        self.model.reboot()
+    pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
+        self.model.reboot(delay)
+    }
+
+    pub fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
+        self.model.factory_reset(delay)
     }
 }
 
@@ -78,9 +83,20 @@ impl System for HS100 {
         })
     }
 
-    fn reboot(&mut self) -> Result<()> {
+    fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
+        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
-            .send("system", "reboot", Some(&json!({"delay":1})))
+            .send("system", "reboot", Some(&json!({ "delay": delay_in_secs })))
+            .map(|res| match String::from_utf8(res) {
+                Ok(res) => debug!("{}", res),
+                Err(e) => error!("{}", e),
+            })
+    }
+
+    fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
+        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
+        self.proto
+            .send("system", "reset", Some(&json!({ "delay": delay_in_secs })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),

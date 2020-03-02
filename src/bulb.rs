@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
+use std::time::Duration;
 
 pub struct Bulb<T> {
     model: T,
@@ -30,8 +31,12 @@ impl<T: System> Bulb<T> {
         self.model.sys_info()
     }
 
-    pub fn reboot(&mut self) -> Result<()> {
-        self.model.reboot()
+    pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
+        self.model.reboot(delay)
+    }
+
+    pub fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
+        self.model.factory_reset(delay)
     }
 }
 
@@ -78,9 +83,28 @@ impl System for LB110 {
         })
     }
 
-    fn reboot(&mut self) -> Result<()> {
+    fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
+        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
-            .send("system", "reboot", Some(&json!({"delay":1})))
+            .send(
+                "smartlife.iot.common.system",
+                "reboot",
+                Some(&json!({ "delay": delay_in_secs })),
+            )
+            .map(|res| match String::from_utf8(res) {
+                Ok(res) => debug!("{}", res),
+                Err(e) => error!("{}", e),
+            })
+    }
+
+    fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
+        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
+        self.proto
+            .send(
+                "smartlife.iot.common.system",
+                "reset",
+                Some(&json!({ "delay": delay_in_secs })),
+            )
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -107,7 +131,7 @@ impl Device for LB110 {
             .send(
                 "smartlife.iot.smartbulb.lightingservice",
                 "transition_light_state",
-                Some(&json!({"on_off": 1})),
+                Some(&json!({"on_off": 0})),
             )
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
