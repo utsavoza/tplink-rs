@@ -1,5 +1,4 @@
 use crate::error::Result;
-
 use std::time::Duration;
 
 pub trait System {

@@ -1,7 +1,6 @@
-use crate::device::Device;
+use crate::command::{Device, System};
 use crate::error::Result;
 use crate::proto::{self, Proto};
-use crate::system::System;
 
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
@@ -11,62 +10,23 @@ use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
-pub struct Bulb<T> {
-    model: T,
-}
-
-impl Bulb<LB110> {
-    pub fn new<A>(host: A) -> Bulb<LB110>
-    where
-        A: Into<IpAddr>,
-    {
-        Bulb {
-            model: LB110::new(host),
-        }
-    }
-}
-
-impl<T: System> Bulb<T> {
-    pub fn sys_info(&mut self) -> Result<T::SystemInfo> {
-        self.model.sys_info()
-    }
-
-    pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.model.reboot(delay)
-    }
-
-    pub fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.model.factory_reset(delay)
-    }
-}
-
-impl<T: Device> Bulb<T> {
-    pub fn turn_on(&mut self) -> Result<()> {
-        self.model.turn_on()
-    }
-
-    pub fn turn_off(&mut self) -> Result<()> {
-        self.model.turn_off()
-    }
-}
-
-pub struct LB110 {
+pub struct HS100 {
     proto: Proto,
 }
 
-impl LB110 {
-    fn new<A>(host: A) -> LB110
+impl HS100 {
+    pub(super) fn new<A>(host: A) -> HS100
     where
         A: Into<IpAddr>,
     {
-        LB110 {
+        HS100 {
             proto: proto::Builder::default(host),
         }
     }
 }
 
-impl System for LB110 {
-    type SystemInfo = LB110Info;
+impl System for HS100 {
+    type SystemInfo = HS100Info;
 
     fn sys_info(&mut self) -> Result<Self::SystemInfo> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
@@ -86,11 +46,7 @@ impl System for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
-            .send(
-                "smartlife.iot.common.system",
-                "reboot",
-                Some(&json!({ "delay": delay_in_secs })),
-            )
+            .send("system", "reboot", Some(&json!({ "delay": delay_in_secs })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -100,11 +56,7 @@ impl System for LB110 {
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
-            .send(
-                "smartlife.iot.common.system",
-                "reset",
-                Some(&json!({ "delay": delay_in_secs })),
-            )
+            .send("system", "reset", Some(&json!({ "delay": delay_in_secs })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -112,14 +64,10 @@ impl System for LB110 {
     }
 }
 
-impl Device for LB110 {
+impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
         self.proto
-            .send(
-                "smartlife.iot.smartbulb.lightingservice",
-                "transition_light_state",
-                Some(&json!({ "on_off": 1 })),
-            )
+            .send("system", "set_relay_state", Some(&json!({ "state": 1 })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -128,11 +76,7 @@ impl Device for LB110 {
 
     fn turn_off(&mut self) -> Result<()> {
         self.proto
-            .send(
-                "smartlife.iot.smartbulb.lightingservice",
-                "transition_light_state",
-                Some(&json!({ "on_off": 0 })),
-            )
+            .send("system", "set_relay_state", Some(&json!({ "state": 0 })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -143,16 +87,16 @@ impl Device for LB110 {
 #[derive(Debug, Serialize, Deserialize)]
 struct Response {
     #[serde(rename = "system")]
-    sys_info: LB110Info,
+    sys_info: HS100Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LB110Info {
+pub struct HS100Info {
     #[serde(rename = "get_sysinfo")]
     values: HashMap<String, Value>,
 }
 
-impl LB110Info {
+impl HS100Info {
     pub fn sw_ver(&self) -> Option<String> {
         self.get_string("sw_ver")
     }
@@ -174,11 +118,11 @@ impl LB110Info {
     }
 
     pub fn device_type(&self) -> Option<String> {
-        self.get_string("mic_type")
+        self.get_string("type")
     }
 
     pub fn mac_address(&self) -> Option<String> {
-        self.get_string("mic_mac")
+        self.get_string("mac")
     }
 
     fn get_string(&self, key: &str) -> Option<String> {
@@ -186,7 +130,7 @@ impl LB110Info {
     }
 }
 
-impl fmt::Display for LB110Info {
+impl fmt::Display for HS100Info {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(&self.values).unwrap())
     }
