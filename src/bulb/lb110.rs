@@ -1,5 +1,5 @@
 use crate::bulb::lighting::Lighting;
-use crate::command::{Device, System};
+use crate::command::{Device, System, SystemInfo};
 use crate::error::Result;
 use crate::proto::{self, Proto};
 
@@ -28,10 +28,10 @@ impl LB110 {
     }
 }
 
-impl System for LB110 {
-    type SystemInfo = LB110Info;
+impl SystemInfo for LB110 {
+    type Info = LB110Info;
 
-    fn sys_info(&mut self) -> Result<Self::SystemInfo> {
+    fn sys_info(&mut self) -> Result<Self::Info> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
             match serde_json::from_slice::<Response>(&res) {
                 Ok(res) => {
@@ -45,7 +45,9 @@ impl System for LB110 {
             }
         })
     }
+}
 
+impl System for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto

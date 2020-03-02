@@ -1,6 +1,6 @@
 mod hs100;
 
-use crate::command::{Device, System};
+use crate::command::{Device, System, SystemInfo};
 use crate::error::Result;
 use crate::plug::hs100::HS100;
 
@@ -22,11 +22,13 @@ impl Plug<HS100> {
     }
 }
 
-impl<T: System> Plug<T> {
-    pub fn sys_info(&mut self) -> Result<T::SystemInfo> {
+impl<T: SystemInfo> Plug<T> {
+    pub fn sys_info(&mut self) -> Result<T::Info> {
         self.model.sys_info()
     }
+}
 
+impl<T: System> Plug<T> {
     pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         self.model.reboot(delay)
     }

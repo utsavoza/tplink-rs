@@ -1,4 +1,4 @@
-use crate::command::{Device, System};
+use crate::command::{Device, System, SystemInfo};
 use crate::error::Result;
 use crate::proto::{self, Proto};
 
@@ -25,10 +25,10 @@ impl HS100 {
     }
 }
 
-impl System for HS100 {
-    type SystemInfo = HS100Info;
+impl SystemInfo for HS100 {
+    type Info = HS100Info;
 
-    fn sys_info(&mut self) -> Result<Self::SystemInfo> {
+    fn sys_info(&mut self) -> Result<Self::Info> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
             match serde_json::from_slice::<Response>(&res) {
                 Ok(res) => {
@@ -42,7 +42,9 @@ impl System for HS100 {
             }
         })
     }
+}
 
+impl System for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto

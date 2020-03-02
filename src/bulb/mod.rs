@@ -2,7 +2,7 @@ mod lb110;
 mod lighting;
 
 use crate::bulb::lb110::LB110;
-use crate::command::{Device, System};
+use crate::command::{Device, System, SystemInfo};
 use crate::error::Result;
 
 use std::net::IpAddr;
@@ -23,11 +23,13 @@ impl Bulb<LB110> {
     }
 }
 
-impl<T: System> Bulb<T> {
-    pub fn sys_info(&mut self) -> Result<T::SystemInfo> {
+impl<T: SystemInfo> Bulb<T> {
+    pub fn sys_info(&mut self) -> Result<T::Info> {
         self.model.sys_info()
     }
+}
 
+impl<T: System> Bulb<T> {
     pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         self.model.reboot(delay)
     }
