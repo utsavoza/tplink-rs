@@ -107,7 +107,7 @@ impl System for HS100 {
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
         self.proto
-            .send("system", "set_relay_state", Some(&json!({"state":1})))
+            .send("system", "set_relay_state", Some(&json!({ "state": 1 })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),
@@ -116,7 +116,7 @@ impl Device for HS100 {
 
     fn turn_off(&mut self) -> Result<()> {
         self.proto
-            .send("system", "set_relay_state", Some(&json!({"state":0})))
+            .send("system", "set_relay_state", Some(&json!({ "state": 0 })))
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
                 Err(e) => error!("{}", e),

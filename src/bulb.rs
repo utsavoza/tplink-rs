@@ -118,7 +118,7 @@ impl Device for LB110 {
             .send(
                 "smartlife.iot.smartbulb.lightingservice",
                 "transition_light_state",
-                Some(&json!({"on_off": 1})),
+                Some(&json!({ "on_off": 1 })),
             )
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
@@ -131,7 +131,7 @@ impl Device for LB110 {
             .send(
                 "smartlife.iot.smartbulb.lightingservice",
                 "transition_light_state",
-                Some(&json!({"on_off": 0})),
+                Some(&json!({ "on_off": 0 })),
             )
             .map(|res| match String::from_utf8(res) {
                 Ok(res) => debug!("{}", res),
