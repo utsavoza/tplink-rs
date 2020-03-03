@@ -16,36 +16,32 @@ pub(super) struct LightState {
     pub(super) values: Map<String, Value>,
 }
 
-pub(super) struct Lighting {
-    namespace: String,
-}
+pub(super) struct Lighting(String);
 
 impl Lighting {
     pub(super) fn new(namespace: Option<&str>) -> Lighting {
-        Lighting {
-            namespace: namespace
+        Lighting(
+            namespace
                 .unwrap_or("smartlife.iot.smartbulb.lightingservice")
                 .into(),
-        }
+        )
     }
 
-    pub(super) fn get_light_state(&mut self, proto: &mut Proto) -> Result<LightState> {
-        proto
-            .send(&self.namespace, "get_light_state", None)
-            .map(|res| {
-                serde_json::from_slice::<Response>(&res)
-                    .unwrap()
-                    .light_state
-            })
+    pub(super) fn get_light_state(&self, proto: &mut Proto) -> Result<LightState> {
+        proto.send(&self.0, "get_light_state", None).map(|res| {
+            serde_json::from_slice::<Response>(&res)
+                .unwrap()
+                .light_state
+        })
     }
 
     pub(super) fn set_light_state(
-        &mut self,
+        &self,
         proto: &mut Proto,
         arg: Option<&Value>,
     ) -> Result<LightState> {
         proto
-            .send(&self.namespace, "transition_light_state", arg)
+            .send(&self.0, "transition_light_state", arg)
             .map(|res| {
                 serde_json::from_slice::<Response>(&res)
                     .unwrap()
