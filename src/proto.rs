@@ -61,7 +61,7 @@ impl Builder {
 
     pub(crate) fn build(&mut self) -> Proto {
         Proto {
-            host: SocketAddr::new(self.host, self.port),
+            addr: SocketAddr::new(self.host, self.port),
             buffer_size: self.buffer_size,
             read_timeout: self.read_timeout,
             write_timeout: self.write_timeout,
@@ -70,14 +70,14 @@ impl Builder {
 }
 
 pub(crate) struct Proto {
-    host: SocketAddr,
+    addr: SocketAddr,
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
 }
 
 impl Proto {
-    pub(crate) fn send(&mut self, target: &str, cmd: &str, arg: Option<&Value>) -> Result<Vec<u8>> {
+    pub(crate) fn send(&self, target: &str, cmd: &str, arg: Option<&Value>) -> Result<Vec<u8>> {
         self.send_bytes(&serde_json::to_vec(&json!({target:{cmd:arg}})).map_err(error::json)?)
     }
 
@@ -86,7 +86,7 @@ impl Proto {
 
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
-        socket.send_to(&crypto::encrypt(bytes), self.host)?;
+        socket.send_to(&crypto::encrypt(bytes), self.addr)?;
 
         let mut buf = vec![0; self.buffer_size];
         match socket.recv(&mut buf) {

@@ -24,6 +24,7 @@ impl Error {
 pub enum ErrorKind {
     Io(io::Error),
     Json(serde_json::Error),
+    OperationNotSupported,
 }
 
 impl fmt::Display for Error {
@@ -31,6 +32,7 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::Io(ref e) => e.fmt(f),
             ErrorKind::Json(ref e) => e.fmt(f),
+            ErrorKind::OperationNotSupported => write!(f, "operation not supported"),
         }
     }
 }
@@ -40,6 +42,7 @@ impl StdError for Error {
         match self.kind {
             ErrorKind::Io(ref e) => Some(e),
             ErrorKind::Json(ref e) => Some(e),
+            _ => None,
         }
     }
 }

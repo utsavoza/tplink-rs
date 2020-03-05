@@ -1,4 +1,4 @@
-use crate::command::{Device, System, SystemInfo};
+use crate::command::{Device, SysInfo, System};
 use crate::error::Result;
 use crate::proto::{self, Proto};
 
@@ -23,7 +23,7 @@ impl Plug<HS100> {
     }
 }
 
-impl<T: SystemInfo> Plug<T> {
+impl<T: SysInfo> Plug<T> {
     pub fn sysinfo(&mut self) -> Result<T::Info> {
         self.model.sysinfo()
     }
@@ -64,10 +64,10 @@ impl HS100 {
     }
 }
 
-impl SystemInfo for HS100 {
+impl SysInfo for HS100 {
     type Info = HS100Info;
 
-    fn sysinfo(&mut self) -> Result<Self::Info> {
+    fn sysinfo(&self) -> Result<Self::Info> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
             match serde_json::from_slice::<Response>(&res) {
                 Ok(res) => {
