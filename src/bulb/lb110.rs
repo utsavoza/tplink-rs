@@ -23,24 +23,24 @@ impl LB110 {
     }
 
     pub(super) fn sw_ver(&self) -> Result<String> {
-        self.sysinfo().map(|sysinfo| sysinfo.sw_ver().to_string())
+        self.sysinfo().map(|sysinfo| sysinfo.sw_ver)
     }
 
     pub(super) fn hw_ver(&self) -> Result<String> {
-        self.sysinfo().map(|sysinfo| sysinfo.hw_ver().to_string())
+        self.sysinfo().map(|sysinfo| sysinfo.hw_ver)
     }
 
     pub(super) fn model(&self) -> Result<String> {
-        self.sysinfo().map(|sysinfo| sysinfo.model().to_string())
+        self.sysinfo().map(|sysinfo| sysinfo.model)
     }
 
     pub(super) fn alias(&self) -> Result<String> {
-        self.sysinfo().map(|sysinfo| sysinfo.alias().to_string())
+        self.sysinfo().map(|sysinfo| sysinfo.alias)
     }
 
     pub(super) fn mac_address(&self) -> Result<String> {
         self.sysinfo()
-            .map(|sysinfo| sysinfo.mac_address().to_string())
+            .map(|sysinfo| sysinfo.mic_mac)
     }
 
     pub(super) fn is_dimmable(&self) -> Result<bool> {

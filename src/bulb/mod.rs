@@ -11,9 +11,13 @@ pub struct Bulb<T> {
     device: T,
 }
 
-impl<T: SysInfo> Bulb<T> {
-    pub fn sysinfo(&self) -> Result<T::Info> {
-        self.device.sysinfo()
+impl<T: Device> Bulb<T> {
+    pub fn turn_on(&mut self) -> Result<()> {
+        self.device.turn_on()
+    }
+
+    pub fn turn_off(&mut self) -> Result<()> {
+        self.device.turn_off()
     }
 }
 
@@ -27,13 +31,9 @@ impl<T: System> Bulb<T> {
     }
 }
 
-impl<T: Device> Bulb<T> {
-    pub fn turn_on(&mut self) -> Result<()> {
-        self.device.turn_on()
-    }
-
-    pub fn turn_off(&mut self) -> Result<()> {
-        self.device.turn_off()
+impl<T: SysInfo> Bulb<T> {
+    pub fn sysinfo(&self) -> Result<T::Info> {
+        self.device.sysinfo()
     }
 }
 

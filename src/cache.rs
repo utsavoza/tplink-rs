@@ -87,8 +87,7 @@ impl<K: Hash + Eq, V> Cache<K, V> {
     where
         F: FnMut(&K, &mut V) -> bool,
     {
-        self.store
-            .retain(|x: &K, y: &mut (Instant, V)| f(x, &mut y.1))
+        self.store.retain(|k, v| f(k, &mut v.1))
     }
 
     pub(crate) fn clear(&mut self) {

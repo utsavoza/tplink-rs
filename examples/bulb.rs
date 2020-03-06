@@ -1,4 +1,4 @@
-//! `cargo run --example device`
+//! `cargo run --example bulb`
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);

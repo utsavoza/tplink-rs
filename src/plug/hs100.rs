@@ -4,6 +4,7 @@ use crate::proto::{self, Proto};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
@@ -20,25 +21,52 @@ impl HS100 {
             proto: proto::Builder::default(host),
         }
     }
+
+    pub(super) fn sw_ver(&self) -> Result<String> {
+        self.sysinfo().map(|sysinfo| sysinfo.sw_ver)
+    }
+
+    pub(super) fn hw_ver(&self) -> Result<String> {
+        self.sysinfo().map(|sysinfo| sysinfo.hw_ver)
+    }
+
+    pub(super) fn model(&self) -> Result<String> {
+        self.sysinfo().map(|sysinfo| sysinfo.model)
+    }
+
+    pub(super) fn alias(&self) -> Result<String> {
+        self.sysinfo().map(|sysinfo| sysinfo.alias)
+    }
+
+    pub(super) fn mac_address(&self) -> Result<String> {
+        self.sysinfo()
+            .map(|sysinfo| sysinfo.mac)
+    }
+
+    pub(super) fn rssi(&self) -> Result<i64> {
+        self.sysinfo().map(|sysinfo| sysinfo.rssi)
+    }
+
+    pub(super) fn location(&self) -> Result<Location> {
+        self.sysinfo().map(|sysinfo| sysinfo.location)
+    }
+
+    pub(super) fn is_on(&self) -> Result<bool> {
+        self.sysinfo().map(|sysinfo| sysinfo.relay_state() == 1)
+    }
 }
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
         self.proto
             .send("system", "set_relay_state", Some(&json!({ "state": 1 })))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => log::debug!("{}", res),
-                Err(e) => log::error!("{}", e),
-            })
+            .map(|_| {})
     }
 
     fn turn_off(&mut self) -> Result<()> {
         self.proto
             .send("system", "set_relay_state", Some(&json!({ "state": 0 })))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => log::debug!("{}", res),
-                Err(e) => log::error!("{}", e),
-            })
+            .map(|_| {})
     }
 }
 
@@ -47,20 +75,14 @@ impl System for HS100 {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
             .send("system", "reboot", Some(&json!({ "delay": delay_in_secs })))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => log::debug!("{}", res),
-                Err(e) => log::error!("{}", e),
-            })
+            .map(|_| {})
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
             .send("system", "reset", Some(&json!({ "delay": delay_in_secs })))
-            .map(|res| match String::from_utf8(res) {
-                Ok(res) => log::debug!("{}", res),
-                Err(e) => log::error!("{}", e),
-            })
+            .map(|_| {})
     }
 }
 
@@ -69,62 +91,91 @@ impl SysInfo for HS100 {
 
     fn sysinfo(&self) -> Result<Self::Info> {
         self.proto.send("system", "get_sysinfo", None).map(|res| {
-            match serde_json::from_slice::<Response>(&res) {
-                Ok(res) => {
-                    log::debug!("{:?}", res);
-                    res.sys_info
-                }
-                Err(e) => {
-                    log::error!("{}", e);
-                    unreachable!()
-                }
-            }
+            serde_json::from_slice::<Response>(&res)
+                .map(|res| res.system.get_sysinfo)
+                .unwrap()
         })
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Response {
-    #[serde(rename = "system")]
-    sys_info: HS100Info,
+    #[serde(alias = "system")]
+    system: GetSysInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GetSysInfo {
+    get_sysinfo: HS100Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HS100Info {
-    #[serde(rename = "get_sysinfo")]
-    values: Map<String, Value>,
+    sw_ver: String,
+    hw_ver: String,
+    model: String,
+    #[serde(rename = "type")]
+    device_type: String,
+    mac: String,
+    alias: String,
+    relay_state: u64,
+    rssi: i64,
+    #[serde(flatten)]
+    location: Location,
+    #[serde(flatten)]
+    other: Map<String, Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Location {
+    #[serde(rename = "longitude_i")]
+    pub longitude: i64,
+    #[serde(rename = "latitude_i")]
+    pub latitude: i64,
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.latitude, self.longitude)
+    }
 }
 
 impl HS100Info {
-    pub fn sw_ver(&self) -> Option<String> {
-        self.get_string("sw_ver")
+    pub fn sw_ver(&self) -> &str {
+        &self.sw_ver
     }
 
-    pub fn hw_ver(&self) -> Option<String> {
-        self.get_string("hw_ver")
+    pub fn hw_ver(&self) -> &str {
+        &self.hw_ver
     }
 
-    pub fn device_id(&self) -> Option<String> {
-        self.get_string("deviceId")
+    pub fn model(&self) -> &str {
+        &self.model
     }
 
-    pub fn alias(&self) -> Option<String> {
-        self.get_string("alias")
+    pub fn alias(&self) -> &str {
+        &self.alias
     }
 
-    pub fn model(&self) -> Option<String> {
-        self.get_string("model")
+    pub fn mac_address(&self) -> &str {
+        &self.mac
     }
 
-    pub fn device_type(&self) -> Option<String> {
-        self.get_string("type")
+    pub fn rssi(&self) -> i64 {
+        self.rssi
     }
 
-    pub fn mac_address(&self) -> Option<String> {
-        self.get_string("mac")
+    pub fn location(&self) -> &Location {
+        &self.location
     }
 
-    fn get_string(&self, key: &str) -> Option<String> {
-        self.values.get(key).map(|value| value.to_string())
+    fn relay_state(&self) -> u64 {
+        self.relay_state
+    }
+}
+
+impl fmt::Display for HS100Info {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(&self).unwrap())
     }
 }

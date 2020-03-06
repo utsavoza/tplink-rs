@@ -18,5 +18,9 @@ name = "sysinfo"
 path = "examples/sysinfo.rs"
 
 [[example]]
-name = "device"
-path = "examples/device.rs"
+name = "bulb"
+path = "examples/bulb.rs"
+
+[[example]]
+name = "plug"
+path = "examples/plug.rs"

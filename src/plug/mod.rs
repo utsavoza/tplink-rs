@@ -1,5 +1,7 @@
 mod hs100;
 
+pub use crate::plug::hs100::Location;
+
 use crate::command::{Device, SysInfo, System};
 use crate::error::Result;
 use crate::plug::hs100::HS100;
@@ -20,10 +22,42 @@ impl Plug<HS100> {
             device: HS100::new(host),
         }
     }
+
+    pub fn sw_ver(&self) -> Result<String> {
+        self.device.sw_ver()
+    }
+
+    pub fn hw_ver(&self) -> Result<String> {
+        self.device.hw_ver()
+    }
+
+    pub fn model(&self) -> Result<String> {
+        self.device.model()
+    }
+
+    pub fn alias(&self) -> Result<String> {
+        self.device.alias()
+    }
+
+    pub fn mac_address(&self) -> Result<String> {
+        self.device.mac_address()
+    }
+
+    pub fn rssi(&self) -> Result<i64> {
+        self.device.rssi()
+    }
+
+    pub fn location(&self) -> Result<Location> {
+        self.device.location()
+    }
+
+    pub fn is_on(&self) -> Result<bool> {
+        self.device.is_on()
+    }
 }
 
 impl<T: SysInfo> Plug<T> {
-    pub fn sysinfo(&mut self) -> Result<T::Info> {
+    pub fn sysinfo(&self) -> Result<T::Info> {
         self.device.sysinfo()
     }
 }
