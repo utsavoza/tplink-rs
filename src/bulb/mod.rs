@@ -1,6 +1,6 @@
-mod lb1xx;
+mod lb110;
 
-use crate::bulb::lb1xx::LB1XX;
+use crate::bulb::lb110::{HSV, LB110};
 use crate::command::{Device, SysInfo, System};
 use crate::error::Result;
 
@@ -37,13 +37,13 @@ impl<T: Device> Bulb<T> {
     }
 }
 
-impl Bulb<LB1XX> {
-    pub fn new<A>(host: A) -> Bulb<LB1XX>
+impl Bulb<LB110> {
+    pub fn new<A>(host: A) -> Bulb<LB110>
     where
         A: Into<IpAddr>,
     {
         Bulb {
-            device: LB1XX::new(host),
+            device: LB110::new(host),
         }
     }
 
@@ -79,11 +79,19 @@ impl Bulb<LB1XX> {
         self.device.is_variable_color_temp()
     }
 
+    pub fn rssi(&self) -> Result<i64> {
+        self.device.rssi()
+    }
+
     pub fn is_on(&self) -> Result<bool> {
         self.device.is_on()
     }
 
-    pub fn hsv(&self) -> Result<(u64, u64, u64)> {
+    pub fn hsv(&self) -> Result<HSV> {
         self.device.hsv()
+    }
+
+    pub fn has_emeter(&self) -> Result<bool> {
+        Ok(true)
     }
 }

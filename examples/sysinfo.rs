@@ -32,5 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mac_address = sysinfo.mac_address();
     println!("mac_address: {}", mac_address);
 
+    let rssi = sysinfo.rssi();
+    println!("rssi: {}", rssi);
+
     Ok(())
 }

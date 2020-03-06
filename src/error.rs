@@ -24,7 +24,7 @@ impl Error {
 pub enum ErrorKind {
     Io(io::Error),
     Json(serde_json::Error),
-    UnsupportedOperation,
+    UnsupportedOperation(String),
 }
 
 impl fmt::Display for Error {
@@ -32,7 +32,7 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::Io(ref e) => e.fmt(f),
             ErrorKind::Json(ref e) => e.fmt(f),
-            ErrorKind::UnsupportedOperation => write!(f, "unsupported operation"),
+            ErrorKind::UnsupportedOperation(ref op) => write!(f, "unsupported operation: {}", op),
         }
     }
 }
@@ -57,6 +57,6 @@ pub(crate) fn json(e: serde_json::Error) -> Error {
     Error::new(ErrorKind::Json(e))
 }
 
-pub(crate) fn unsupported_operation() -> Error {
-    Error::new(ErrorKind::UnsupportedOperation)
+pub(crate) fn unsupported_operation(name: &str) -> Error {
+    Error::new(ErrorKind::UnsupportedOperation(name.into()))
 }

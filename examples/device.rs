@@ -12,11 +12,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("supports brightness: {}", bulb.is_dimmable()?);
     println!("supports color: {}", bulb.is_color()?);
     println!("supports color temp: {}", bulb.is_variable_color_temp()?);
+    println!("has emeter: {}", bulb.has_emeter()?);
 
     match bulb.hsv() {
-        Ok((hue, saturation, value)) => {
-            println!("hue: {}, saturation: {}, value: {}", hue, saturation, value)
-        }
+        Ok(hsv) => println!(
+            "hue: {}, saturation: {}, value: {}",
+            hsv.hue(),
+            hsv.saturation(),
+            hsv.value()
+        ),
         Err(e) => println!("error: {}", e),
     }
 

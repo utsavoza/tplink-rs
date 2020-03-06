@@ -8,16 +8,16 @@ use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
-pub struct LB1XX {
+pub struct LB110 {
     proto: Proto,
 }
 
-impl LB1XX {
-    pub(super) fn new<A>(host: A) -> LB1XX
+impl LB110 {
+    pub(super) fn new<A>(host: A) -> LB110
     where
         A: Into<IpAddr>,
     {
-        LB1XX {
+        LB110 {
             proto: proto::Builder::default(host),
         }
     }
@@ -56,32 +56,20 @@ impl LB1XX {
             .map(|sysinfo| sysinfo.is_variable_color_temp())
     }
 
+    pub(super) fn rssi(&self) -> Result<i64> {
+        self.sysinfo().map(|sysinfo| sysinfo.rssi())
+    }
+
+    pub(super) fn hsv(&self) -> Result<HSV> {
+        self.sysinfo().and_then(|sysinfo| sysinfo.hsv())
+    }
+
     pub(super) fn is_on(&self) -> Result<bool> {
         self.get_light_state()
             .map(|light_state| light_state.is_on())
     }
 
-    pub(super) fn hsv(&self) -> Result<(u64, u64, u64)> {
-        self.sysinfo().and_then(|sysinfo| sysinfo.hsv())
-    }
-
-    pub(super) fn set_light_state(&self, arg: Option<&Value>) -> Result<LightState> {
-        self.proto
-            .send(
-                "smartlife.iot.smartbulb.lightingservice",
-                "transition_light_state",
-                arg,
-            )
-            .map(|res| {
-                serde_json::from_slice::<Response>(&res)
-                    .unwrap()
-                    .lighting
-                    .unwrap()
-                    .light_state
-            })
-    }
-
-    pub(super) fn get_light_state(&self) -> Result<LightState> {
+    fn get_light_state(&self) -> Result<LightState> {
         self.proto
             .send(
                 "smartlife.iot.smartbulb.lightingservice",
@@ -96,9 +84,25 @@ impl LB1XX {
                     .light_state
             })
     }
+
+    fn set_light_state(&self, arg: Option<&Value>) -> Result<LightState> {
+        self.proto
+            .send(
+                "smartlife.iot.smartbulb.lightingservice",
+                "transition_light_state",
+                arg,
+            )
+            .map(|res| {
+                serde_json::from_slice::<Response>(&res)
+                    .unwrap()
+                    .lighting
+                    .unwrap()
+                    .light_state
+            })
+    }
 }
 
-impl Device for LB1XX {
+impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
         self.set_light_state(Some(&json!({ "on_off": 1 })))
             .map(|state| log::trace!("{:?}", state))
@@ -110,21 +114,7 @@ impl Device for LB1XX {
     }
 }
 
-impl SysInfo for LB1XX {
-    type Info = LB1XXInfo;
-
-    fn sysinfo(&self) -> Result<Self::Info> {
-        self.proto.send("system", "get_sysinfo", None).map(|res| {
-            serde_json::from_slice::<Response>(&res)
-                .unwrap()
-                .system
-                .unwrap()
-                .get_sysinfo
-        })
-    }
-}
-
-impl System for LB1XX {
+impl System for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         self.proto
@@ -148,6 +138,20 @@ impl System for LB1XX {
     }
 }
 
+impl SysInfo for LB110 {
+    type Info = LB110Info;
+
+    fn sysinfo(&self) -> Result<Self::Info> {
+        self.proto.send("system", "get_sysinfo", None).map(|res| {
+            serde_json::from_slice::<Response>(&res)
+                .unwrap()
+                .system
+                .unwrap()
+                .get_sysinfo
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Response {
     #[serde(alias = "system")]
@@ -159,11 +163,11 @@ struct Response {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct GetSysInfo {
-    get_sysinfo: LB1XXInfo,
+    get_sysinfo: LB110Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LB1XXInfo {
+pub struct LB110Info {
     sw_ver: String,
     hw_ver: String,
     model: String,
@@ -175,11 +179,12 @@ pub struct LB1XXInfo {
     is_color: u64,
     is_variable_color_temp: u64,
     light_state: LightState,
+    rssi: i64,
     #[serde(flatten)]
     other: Map<String, Value>,
 }
 
-impl LB1XXInfo {
+impl LB110Info {
     pub fn sw_ver(&self) -> &str {
         &self.sw_ver
     }
@@ -212,16 +217,20 @@ impl LB1XXInfo {
         self.is_variable_color_temp == 1
     }
 
-    pub fn hsv(&self) -> Result<(u64, u64, u64)> {
+    pub fn rssi(&self) -> i64 {
+        self.rssi
+    }
+
+    pub fn hsv(&self) -> Result<HSV> {
         if self.is_color == 1 {
             Ok(self.light_state.hsv())
         } else {
-            Err(error::unsupported_operation())
+            Err(error::unsupported_operation("hsv"))
         }
     }
 }
 
-impl fmt::Display for LB1XXInfo {
+impl fmt::Display for LB110Info {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(&self).unwrap())
     }
@@ -234,20 +243,11 @@ struct Lighting {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LightState {
+struct LightState {
     on_off: u64,
     #[serde(flatten)]
     hsv: Option<HSV>,
     dft_on_state: Option<HSV>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct HSV {
-    mode: Option<String>,
-    hue: u64,
-    saturation: u64,
-    color_temp: u64,
-    brightness: u64,
 }
 
 impl LightState {
@@ -255,23 +255,37 @@ impl LightState {
         self.on_off == 1
     }
 
-    fn hsv(&self) -> (u64, u64, u64) {
+    fn hsv(&self) -> HSV {
         if self.on_off == 1 {
-            let &HSV {
-                hue,
-                saturation,
-                brightness,
-                ..
-            } = self.hsv.as_ref().unwrap();
-            (hue, saturation, brightness)
+            self.hsv.as_ref().unwrap().clone()
         } else {
-            let &HSV {
-                hue,
-                saturation,
-                brightness,
-                ..
-            } = self.dft_on_state.as_ref().unwrap();
-            (hue, saturation, brightness)
+            self.dft_on_state.as_ref().unwrap().clone()
         }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HSV {
+    mode: Option<String>,
+    hue: u64,
+    saturation: u64,
+    color_temp: u64,
+    brightness: u64,
+}
+
+impl HSV {
+    // degrees (0-360)
+    pub fn hue(&self) -> u64 {
+        self.hue
+    }
+
+    // % (0-100)
+    pub fn saturation(&self) -> u64 {
+        self.saturation
+    }
+
+    // % (0-100)
+    pub fn value(&self) -> u64 {
+        self.brightness
     }
 }
