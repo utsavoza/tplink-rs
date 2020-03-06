@@ -1,15 +1,13 @@
 //! `cargo run --example device`
 
-use std::error::Error;
-
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
-
-    bulb.turn_on()?;
-    assert_eq!(bulb.is_on()?, true);
 
     bulb.turn_off()?;
     assert_eq!(bulb.is_on()?, false);
+
+    bulb.turn_on()?;
+    assert_eq!(bulb.is_on()?, true);
 
     println!("supports brightness: {}", bulb.is_dimmable()?);
     println!("supports color: {}", bulb.is_color()?);

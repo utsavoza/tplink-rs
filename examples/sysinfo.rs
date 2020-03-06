@@ -1,8 +1,6 @@
 //! `cargo run --example sysinfo`
 
-use std::error::Error;
-
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let bulb = tplink::Bulb::new([192, 168, 1, 101]);
