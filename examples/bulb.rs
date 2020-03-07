@@ -3,7 +3,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
 
     bulb.turn_on()?;
     assert_eq!(bulb.is_on()?, true);

@@ -1,7 +1,7 @@
+use crate::command::sys::System;
 use crate::command::sysinfo::SystemInfo;
-use crate::command::system::System;
 use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
-use crate::command::{Device, SysInfo, Sys, Time};
+use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::Result;
 use crate::proto::{self, Proto};
 
@@ -19,6 +19,7 @@ pub struct HS100 {
 }
 
 impl HS100 {
+    // TODO: validate host before returning the instance
     pub(super) fn new<A>(host: A) -> HS100
     where
         A: Into<IpAddr>,

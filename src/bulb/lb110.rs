@@ -1,11 +1,11 @@
 use crate::bulb::lighting::{LightState, Lighting, HSV};
-use crate::command::system::System;
+use crate::command::sys::System;
+use crate::command::sysinfo::SystemInfo;
 use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
-use crate::command::{Device, SysInfo, Sys, Time};
+use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::{self, Result};
 use crate::proto::{self, Proto};
 
-use crate::command::sysinfo::SystemInfo;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::fmt;
@@ -21,6 +21,7 @@ pub struct LB110 {
 }
 
 impl LB110 {
+    // TODO: validate host before returning the instance
     pub(super) fn new<A>(host: A) -> LB110
     where
         A: Into<IpAddr>,
@@ -122,17 +123,6 @@ impl SysInfo for LB110 {
     fn sysinfo(&self) -> Result<Self::Info> {
         self.sysinfo.get_sysinfo(&self.proto)
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Response {
-    #[serde(alias = "system")]
-    system: Option<GetSysInfo>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GetSysInfo {
-    get_sysinfo: LB110Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

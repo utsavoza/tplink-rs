@@ -1,10 +1,9 @@
 mod hs100;
 
-pub use crate::plug::hs100::Location;
-
 use crate::command::time::{DeviceTime, DeviceTimeZone};
-use crate::command::{Device, SysInfo, Sys, Time};
+use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::Result;
+use crate::plug::hs100::Location;
 use crate::plug::hs100::HS100;
 
 use std::net::IpAddr;
