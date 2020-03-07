@@ -1,7 +1,10 @@
 mod lb110;
+mod lighting;
 
-use crate::bulb::lb110::{HSV, LB110};
-use crate::command::{Device, SysInfo, System};
+use crate::bulb::lb110::LB110;
+use crate::bulb::lighting::HSV;
+use crate::command::time::{DeviceTime, DeviceTimeZone};
+use crate::command::{Device, SysInfo, Sys, Time};
 use crate::error::Result;
 
 use std::net::IpAddr;
@@ -21,13 +24,23 @@ impl<T: Device> Bulb<T> {
     }
 }
 
-impl<T: System> Bulb<T> {
+impl<T: Sys> Bulb<T> {
     pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         self.device.reboot(delay)
     }
 
     pub fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
         self.device.factory_reset(delay)
+    }
+}
+
+impl<T: Time> Bulb<T> {
+    pub fn time(&self) -> Result<DeviceTime> {
+        self.device.time()
+    }
+
+    pub fn timezone(&self) -> Result<DeviceTimeZone> {
+        self.device.timezone()
     }
 }
 

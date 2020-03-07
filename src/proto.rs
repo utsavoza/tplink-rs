@@ -77,8 +77,16 @@ pub(crate) struct Proto {
 }
 
 impl Proto {
-    pub(crate) fn send(&self, target: &str, cmd: &str, arg: Option<&Value>) -> Result<Vec<u8>> {
-        self.send_bytes(&serde_json::to_vec(&json!({target:{cmd:arg}})).map_err(error::json)?)
+    pub(crate) fn send_command(
+        &self,
+        target: &str,
+        cmd: &str,
+        arg: Option<&Value>,
+    ) -> Result<Value> {
+        serde_json::to_vec(&json!({ target: { cmd: arg } }))
+            .map_err(error::json)
+            .and_then(|req| self.send_bytes(&req))
+            .and_then(|res| serde_json::from_slice(&res).map_err(error::json))
     }
 
     fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {

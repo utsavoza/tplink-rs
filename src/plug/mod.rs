@@ -2,7 +2,8 @@ mod hs100;
 
 pub use crate::plug::hs100::Location;
 
-use crate::command::{Device, SysInfo, System};
+use crate::command::time::{DeviceTime, DeviceTimeZone};
+use crate::command::{Device, SysInfo, Sys, Time};
 use crate::error::Result;
 use crate::plug::hs100::HS100;
 
@@ -62,7 +63,7 @@ impl<T: SysInfo> Plug<T> {
     }
 }
 
-impl<T: System> Plug<T> {
+impl<T: Sys> Plug<T> {
     pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         self.device.reboot(delay)
     }
@@ -79,5 +80,15 @@ impl<T: Device> Plug<T> {
 
     pub fn turn_off(&mut self) -> Result<()> {
         self.device.turn_off()
+    }
+}
+
+impl<T: Time> Plug<T> {
+    pub fn time(&self) -> Result<DeviceTime> {
+        self.device.time()
+    }
+
+    pub fn timezone(&self) -> Result<DeviceTimeZone> {
+        self.device.timezone()
     }
 }

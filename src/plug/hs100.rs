@@ -1,4 +1,7 @@
-use crate::command::{Device, SysInfo, System};
+use crate::command::sysinfo::SystemInfo;
+use crate::command::system::System;
+use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
+use crate::command::{Device, SysInfo, Sys, Time};
 use crate::error::Result;
 use crate::proto::{self, Proto};
 
@@ -10,6 +13,9 @@ use std::time::Duration;
 
 pub struct HS100 {
     proto: Proto,
+    system: System,
+    time_setting: TimeSetting,
+    sysinfo: SystemInfo<HS100Info>,
 }
 
 impl HS100 {
@@ -19,6 +25,9 @@ impl HS100 {
     {
         HS100 {
             proto: proto::Builder::default(host),
+            system: System::new("system"),
+            time_setting: TimeSetting::new("time"),
+            sysinfo: SystemInfo::new(),
         }
     }
 
@@ -39,8 +48,7 @@ impl HS100 {
     }
 
     pub(super) fn mac_address(&self) -> Result<String> {
-        self.sysinfo()
-            .map(|sysinfo| sysinfo.mac)
+        self.sysinfo().map(|sysinfo| sysinfo.mac)
     }
 
     pub(super) fn rssi(&self) -> Result<i64> {
@@ -59,30 +67,34 @@ impl HS100 {
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
         self.proto
-            .send("system", "set_relay_state", Some(&json!({ "state": 1 })))
-            .map(|_| {})
+            .send_command("system", "set_relay_state", Some(&json!({ "state": 1 })))?;
+        Ok(())
     }
 
     fn turn_off(&mut self) -> Result<()> {
         self.proto
-            .send("system", "set_relay_state", Some(&json!({ "state": 0 })))
-            .map(|_| {})
+            .send_command("system", "set_relay_state", Some(&json!({ "state": 0 })))?;
+        Ok(())
     }
 }
 
-impl System for HS100 {
+impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        self.proto
-            .send("system", "reboot", Some(&json!({ "delay": delay_in_secs })))
-            .map(|_| {})
+        self.system.reboot(&self.proto, delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        self.proto
-            .send("system", "reset", Some(&json!({ "delay": delay_in_secs })))
-            .map(|_| {})
+        self.system.factory_reset(&self.proto, delay)
+    }
+}
+
+impl Time for HS100 {
+    fn time(&self) -> Result<DeviceTime> {
+        self.time_setting.get_time(&self.proto)
+    }
+
+    fn timezone(&self) -> Result<DeviceTimeZone> {
+        self.time_setting.get_timezone(&self.proto)
     }
 }
 
@@ -90,23 +102,8 @@ impl SysInfo for HS100 {
     type Info = HS100Info;
 
     fn sysinfo(&self) -> Result<Self::Info> {
-        self.proto.send("system", "get_sysinfo", None).map(|res| {
-            serde_json::from_slice::<Response>(&res)
-                .map(|res| res.system.get_sysinfo)
-                .unwrap()
-        })
+        self.sysinfo.get_sysinfo(&self.proto)
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Response {
-    #[serde(alias = "system")]
-    system: GetSysInfo,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct GetSysInfo {
-    get_sysinfo: HS100Info,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,7 +1,11 @@
-use crate::command::{Device, SysInfo, System};
+use crate::bulb::lighting::{LightState, Lighting, HSV};
+use crate::command::system::System;
+use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
+use crate::command::{Device, SysInfo, Sys, Time};
 use crate::error::{self, Result};
 use crate::proto::{self, Proto};
 
+use crate::command::sysinfo::SystemInfo;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::fmt;
@@ -10,6 +14,10 @@ use std::time::Duration;
 
 pub struct LB110 {
     proto: Proto,
+    system: System,
+    lighting: Lighting,
+    time_setting: TimeSetting,
+    sysinfo: SystemInfo<LB110Info>,
 }
 
 impl LB110 {
@@ -19,6 +27,10 @@ impl LB110 {
     {
         LB110 {
             proto: proto::Builder::default(host),
+            system: System::new("smartlife.iot.common.system"),
+            lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
+            time_setting: TimeSetting::new("smartlife.iot.common.timesetting"),
+            sysinfo: SystemInfo::new(),
         }
     }
 
@@ -39,8 +51,7 @@ impl LB110 {
     }
 
     pub(super) fn mac_address(&self) -> Result<String> {
-        self.sysinfo()
-            .map(|sysinfo| sysinfo.mic_mac)
+        self.sysinfo().map(|sysinfo| sysinfo.mic_mac)
     }
 
     pub(super) fn is_dimmable(&self) -> Result<bool> {
@@ -65,76 +76,43 @@ impl LB110 {
     }
 
     pub(super) fn is_on(&self) -> Result<bool> {
-        self.get_light_state()
+        self.lighting
+            .get_light_state(&self.proto)
             .map(|light_state| light_state.is_on())
-    }
-
-    fn get_light_state(&self) -> Result<LightState> {
-        self.proto
-            .send(
-                "smartlife.iot.smartbulb.lightingservice",
-                "get_light_state",
-                None,
-            )
-            .map(|res| {
-                serde_json::from_slice::<Response>(&res)
-                    .unwrap()
-                    .lighting
-                    .unwrap()
-                    .light_state
-            })
-    }
-
-    fn set_light_state(&self, arg: Option<&Value>) -> Result<LightState> {
-        self.proto
-            .send(
-                "smartlife.iot.smartbulb.lightingservice",
-                "transition_light_state",
-                arg,
-            )
-            .map(|res| {
-                serde_json::from_slice::<Response>(&res)
-                    .unwrap()
-                    .lighting
-                    .unwrap()
-                    .light_state
-            })
     }
 }
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
-        self.set_light_state(Some(&json!({ "on_off": 1 })))
+        self.lighting
+            .set_light_state(&self.proto, Some(&json!({ "on_off": 1 })))
             .map(|state| log::trace!("{:?}", state))
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.set_light_state(Some(&json!({ "on_off": 0 })))
+        self.lighting
+            .set_light_state(&self.proto, Some(&json!({ "on_off": 0 })))
             .map(|state| log::trace!("{:?}", state))
     }
 }
 
-impl System for LB110 {
+impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        self.proto
-            .send(
-                "smartlife.iot.common.system",
-                "reboot",
-                Some(&json!({ "delay": delay_in_secs })),
-            )
-            .map(|_| {})
+        self.system.reboot(&self.proto, delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        self.proto
-            .send(
-                "smartlife.iot.common.system",
-                "reset",
-                Some(&json!({ "delay": delay_in_secs })),
-            )
-            .map(|_| {})
+        self.system.factory_reset(&self.proto, delay)
+    }
+}
+
+impl Time for LB110 {
+    fn time(&self) -> Result<DeviceTime> {
+        self.time_setting.get_time(&self.proto)
+    }
+
+    fn timezone(&self) -> Result<DeviceTimeZone> {
+        self.time_setting.get_timezone(&self.proto)
     }
 }
 
@@ -142,13 +120,7 @@ impl SysInfo for LB110 {
     type Info = LB110Info;
 
     fn sysinfo(&self) -> Result<Self::Info> {
-        self.proto.send("system", "get_sysinfo", None).map(|res| {
-            serde_json::from_slice::<Response>(&res)
-                .unwrap()
-                .system
-                .unwrap()
-                .get_sysinfo
-        })
+        self.sysinfo.get_sysinfo(&self.proto)
     }
 }
 
@@ -156,9 +128,6 @@ impl SysInfo for LB110 {
 struct Response {
     #[serde(alias = "system")]
     system: Option<GetSysInfo>,
-
-    #[serde(alias = "smartlife.iot.smartbulb.lightingservice")]
-    lighting: Option<Lighting>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -233,59 +202,5 @@ impl LB110Info {
 impl fmt::Display for LB110Info {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", serde_json::to_string(&self).unwrap())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Lighting {
-    #[serde(alias = "transition_light_state", alias = "get_light_state")]
-    light_state: LightState,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct LightState {
-    on_off: u64,
-    #[serde(flatten)]
-    hsv: Option<HSV>,
-    dft_on_state: Option<HSV>,
-}
-
-impl LightState {
-    fn is_on(&self) -> bool {
-        self.on_off == 1
-    }
-
-    fn hsv(&self) -> HSV {
-        if self.on_off == 1 {
-            self.hsv.as_ref().unwrap().clone()
-        } else {
-            self.dft_on_state.as_ref().unwrap().clone()
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HSV {
-    mode: Option<String>,
-    hue: u64,
-    saturation: u64,
-    color_temp: u64,
-    brightness: u64,
-}
-
-impl HSV {
-    // degrees (0-360)
-    pub fn hue(&self) -> u64 {
-        self.hue
-    }
-
-    // % (0-100)
-    pub fn saturation(&self) -> u64 {
-        self.saturation
-    }
-
-    // % (0-100)
-    pub fn value(&self) -> u64 {
-        self.brightness
     }
 }

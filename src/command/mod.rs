@@ -1,9 +1,9 @@
 mod device;
-mod sysinfo;
-mod system;
-mod time;
+pub(crate) mod sysinfo;
+pub(crate) mod system;
+pub(crate) mod time;
 
 pub use self::device::Device;
 pub use self::sysinfo::SysInfo;
-pub use self::system::System;
+pub use self::system::Sys;
 pub use self::time::Time;
