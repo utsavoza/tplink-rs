@@ -10,41 +10,168 @@ use crate::error::Result;
 use std::net::IpAddr;
 use std::time::Duration;
 
+/// A TP-Link Smart Bulb.
+///
+/// # Examples
+///
+/// ```no_run
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+///
+///     bulb.turn_on()?;
+///     assert_eq!(bulb.is_on()?, true);
+///
+///     bulb.turn_off()?;
+///     assert_eq!(bulb.is_on()?, false);
+///
+///     Ok(())
+/// }
+/// ```
 pub struct Bulb<T> {
     device: T,
 }
 
 impl<T: Device> Bulb<T> {
+    /// Turns on the bulb.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.turn_on()?;
+    /// assert_eq!(bulb.is_on()?, true);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn turn_on(&mut self) -> Result<()> {
         self.device.turn_on()
     }
 
+    /// Turns off the bulb.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.turn_off()?;
+    /// assert_eq!(bulb.is_on()?, false);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn turn_off(&mut self) -> Result<()> {
         self.device.turn_off()
     }
 }
 
 impl<T: Sys> Bulb<T> {
+    /// Reboots the bulb after the given duration. In case when
+    /// the delay duration is not provided, the bulb is set to
+    /// reboot after a default delay of 1 second.
+    ///
+    /// # Examples
+    /// Reboots the bulb after a delay of 3 seconds.
+    ///
+    /// ```no_run
+    /// use std::time::Duration;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.reboot(Some(Duration::from_secs(3)))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Reboots the bulb after 1 second.
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.reboot(None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
         self.device.reboot(delay)
     }
 
+    /// Factory resets the bulb after the given duration. In case when the delay
+    /// duration is not provided, the bulb is set to reset after a default delay
+    /// of 1 second.
+    ///
+    /// # Examples
+    /// Factory resets the bulb after a delay for 3 seconds.
+    ///
+    /// ```no_run
+    /// use std::time::Duration;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.factory_reset(Some(Duration::from_secs(3)))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// Factory resets the bulb after 1 second.
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.factory_reset(None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
         self.device.factory_reset(delay)
     }
 }
 
 impl<T: Time> Bulb<T> {
+    /// Returns the current date and time of the device without the timezone.
+    /// To get the device timezone, use [`timezone`] method.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let time = bulb.time()?; // e.g. `2020-04-08 22:29:07`
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`timezone`]: #method.timezone
     pub fn time(&self) -> Result<DeviceTime> {
         self.device.time()
     }
 
+    /// Returns the current timezone of the device.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.timezone()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn timezone(&self) -> Result<DeviceTimeZone> {
         self.device.timezone()
     }
 }
 
 impl<T: SysInfo> Bulb<T> {
+    /// Returns the bulb's system information.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let sysinfo = bulb.sysinfo()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn sysinfo(&self) -> Result<T::Info> {
         self.device.sysinfo()
     }
