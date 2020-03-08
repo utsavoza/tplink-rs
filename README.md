@@ -9,7 +9,7 @@ Add tplink-rs to your dependencies:
 [dependencies]
 tplink-rs = "0.1"
 ```
-And then in your `main.rs` or `lib.rs`
+And then in your `main.rs`
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
