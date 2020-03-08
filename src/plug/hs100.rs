@@ -61,7 +61,23 @@ impl HS100 {
     }
 
     pub(super) fn is_on(&self) -> Result<bool> {
-        self.sysinfo().map(|sysinfo| sysinfo.relay_state() == 1)
+        self.sysinfo().map(|sysinfo| sysinfo.is_on())
+    }
+
+    pub(super) fn is_led_on(&self) -> Result<bool> {
+        self.sysinfo().map(|sysinfo| sysinfo.is_led_on())
+    }
+
+    pub(super) fn turn_on_led(&mut self) -> Result<()> {
+        self.proto
+            .send_command("system", "set_led_off", Some(&json!({ "off": false })))?;
+        Ok(())
+    }
+
+    pub(super) fn turn_off_led(&mut self) -> Result<()> {
+        self.proto
+            .send_command("system", "set_led_off", Some(&json!({ "off": true })))?;
+        Ok(())
     }
 }
 
@@ -120,6 +136,7 @@ pub struct HS100Info {
     rssi: i64,
     #[serde(flatten)]
     location: Location,
+    led_off: u64,
     #[serde(flatten)]
     other: Map<String, Value>,
 }
@@ -167,8 +184,12 @@ impl HS100Info {
         &self.location
     }
 
-    fn relay_state(&self) -> u64 {
-        self.relay_state
+    fn is_on(&self) -> bool {
+        self.relay_state == 1
+    }
+
+    fn is_led_on(&self) -> bool {
+        self.led_off == 0
     }
 }
 
