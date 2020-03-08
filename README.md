@@ -1,22 +1,28 @@
 tplink-rs
 =========
 
-A simple client library to control TP-Link smart devices.
+A simple client library to control TP-Link smart home devices.
 
-Basic Usage
------
+## Example
+Add tplink-rs to your dependencies:
+```toml
+[dependencies]
+tplink-rs = "0.1"
+```
+And then in your `main.rs` or `lib.rs`
 ```rust
-fn main() {
-    let plug = tplink::Plug::new([192, 168, 1, 100]);
-    let sys_info = plug.sys_info().unwrap();
-    println!("plug - sys_info: {}", sys_info);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
     
-    let bulb = tplink::Bulb::new([192, 168, 1, 101]);
-    let sys_info = bulb.sys_info().unwrap();
-    println!("bulb - sys_info: {}", sys_info);
+    bulb.turn_on()?;
+    assert_eq!(bulb.is_on()?, true);
+    
+    bulb.turn_off()?;
+    assert_eq!(bulb.is_on()?, false);
+
+    Ok(())
 }
 ```
-
 #### License
 
 <sup>

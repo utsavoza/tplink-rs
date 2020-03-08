@@ -77,6 +77,10 @@ pub(crate) struct Proto {
 }
 
 impl Proto {
+    pub(crate) fn host(&self) -> IpAddr {
+        self.addr.ip()
+    }
+
     pub(crate) fn send_command(
         &self,
         target: &str,
@@ -89,12 +93,12 @@ impl Proto {
             .and_then(|res| serde_json::from_slice(&res).map_err(error::json))
     }
 
-    fn send_bytes(&self, bytes: &[u8]) -> Result<Vec<u8>> {
+    fn send_bytes(&self, req: &[u8]) -> Result<Vec<u8>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
 
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
-        socket.send_to(&crypto::encrypt(bytes), self.addr)?;
+        socket.send_to(&crypto::encrypt(req), self.addr)?;
 
         let mut buf = vec![0; self.buffer_size];
         match socket.recv(&mut buf) {

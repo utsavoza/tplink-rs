@@ -22,13 +22,20 @@ impl<T> SystemInfo<T> {
     }
 }
 
-impl<T> SystemInfo<T>
-where
-    T: DeserializeOwned,
-{
+impl<T: DeserializeOwned> SystemInfo<T> {
     pub(crate) fn get_sysinfo(&self, proto: &Proto) -> Result<T> {
         proto
             .send_command("system", "get_sysinfo", None)
-            .map(|mut value| serde_json::from_value(value["system"]["get_sysinfo"].take()).unwrap())
+            .map(|mut value| {
+                serde_json::from_value(value["system"]["get_sysinfo"].take()).unwrap_or_else(
+                    |err| {
+                        panic!(
+                            "invalid response from host with address {}: {}",
+                            proto.host(),
+                            err
+                        )
+                    },
+                )
+            })
     }
 }

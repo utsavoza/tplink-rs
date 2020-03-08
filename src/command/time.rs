@@ -21,13 +21,29 @@ impl TimeSetting {
     pub(crate) fn get_time(&self, proto: &Proto) -> Result<DeviceTime> {
         proto
             .send_command(&self.ns, "get_time", None)
-            .map(|mut res| serde_json::from_value(res[&self.ns]["get_time"].take()).unwrap())
+            .map(|mut res| {
+                serde_json::from_value(res[&self.ns]["get_time"].take()).unwrap_or_else(|err| {
+                    panic!(
+                        "invalid response from host with address {}: {}",
+                        proto.host(),
+                        err
+                    )
+                })
+            })
     }
 
     pub(crate) fn get_timezone(&self, proto: &Proto) -> Result<DeviceTimeZone> {
         proto
             .send_command(&self.ns, "get_timezone", None)
-            .map(|mut res| serde_json::from_value(res[&self.ns]["get_timezone"].take()).unwrap())
+            .map(|mut res| {
+                serde_json::from_value(res[&self.ns]["get_timezone"].take()).unwrap_or_else(|err| {
+                    panic!(
+                        "invalid response from host with address {}: {}",
+                        proto.host(),
+                        err
+                    )
+                })
+            })
     }
 }
 
