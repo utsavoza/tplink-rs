@@ -2,8 +2,41 @@ use crate::crypto;
 use crate::error::{self, Result};
 
 use serde_json::{json, Value};
+use std::hash::{Hash, Hasher};
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
+
+#[derive(Debug)]
+pub(crate) struct Request {
+    pub(crate) target: String,
+    pub(crate) command: String,
+    pub(crate) arg: Option<Value>,
+}
+
+impl Request {
+    pub(crate) fn from(target: &str, command: &str, arg: Option<Value>) -> Request {
+        Request {
+            target: target.into(),
+            command: command.into(),
+            arg,
+        }
+    }
+}
+
+impl PartialEq for Request {
+    fn eq(&self, other: &Self) -> bool {
+        self.target == other.target && self.command == other.command
+    }
+}
+
+impl Eq for Request {}
+
+impl Hash for Request {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.target.hash(state);
+        self.command.hash(state);
+    }
+}
 
 pub(crate) struct Builder {
     host: IpAddr,
@@ -81,16 +114,20 @@ impl Proto {
         self.addr.ip()
     }
 
-    pub(crate) fn send_command(
-        &self,
-        target: &str,
-        cmd: &str,
-        arg: Option<&Value>,
-    ) -> Result<Value> {
-        serde_json::to_vec(&json!({ target: { cmd: arg } }))
+    pub(crate) fn send_request(&self, req: &Request) -> Result<Value> {
+        let Request {
+            target,
+            command,
+            arg,
+        } = req;
+        serde_json::to_vec(&json!({ target: { command: arg } }))
             .map_err(error::json)
             .and_then(|req| self.send_bytes(&req))
-            .and_then(|res| serde_json::from_slice(&res).map_err(error::json))
+            .and_then(|res| {
+                serde_json::from_slice::<Value>(&res)
+                    .map(|mut value| value[target][command].take())
+                    .map_err(error::json)
+            })
     }
 
     fn send_bytes(&self, req: &[u8]) -> Result<Vec<u8>> {

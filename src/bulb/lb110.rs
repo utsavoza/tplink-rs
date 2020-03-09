@@ -1,13 +1,15 @@
 use crate::bulb::lighting::{LightState, Lighting, HSV};
+use crate::cache::Cache;
 use crate::command::sys::System;
 use crate::command::sysinfo::SystemInfo;
 use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
 use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::{self, Result};
-use crate::proto::{self, Proto};
+use crate::proto::{self, Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
@@ -19,6 +21,7 @@ pub struct LB110 {
     lighting: Lighting,
     time_setting: TimeSetting,
     sysinfo: SystemInfo<LB110Info>,
+    cache: RefCell<Cache<Request, Value>>,
 }
 
 impl LB110 {
@@ -32,6 +35,7 @@ impl LB110 {
             lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
             time_setting: TimeSetting::new("smartlife.iot.common.timesetting"),
             sysinfo: SystemInfo::new(),
+            cache: RefCell::new(Cache::with_ttl(Duration::from_secs(3))),
         }
     }
 
@@ -77,22 +81,25 @@ impl LB110 {
     }
 
     pub(super) fn is_on(&self) -> Result<bool> {
+        let mut cache = self.cache.borrow_mut();
         self.lighting
-            .get_light_state(&self.proto)
+            .get_light_state(&self.proto, &mut cache)
             .map(|light_state| light_state.is_on())
     }
 }
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
+        let mut cache = self.cache.borrow_mut();
         self.lighting
-            .set_light_state(&self.proto, Some(&json!({ "on_off": 1 })))
+            .set_light_state(&self.proto, Some(json!({ "on_off": 1 })), &mut cache)
             .map(|state| log::trace!("{:?}", state))
     }
 
     fn turn_off(&mut self) -> Result<()> {
+        let mut cache = self.cache.borrow_mut();
         self.lighting
-            .set_light_state(&self.proto, Some(&json!({ "on_off": 0 })))
+            .set_light_state(&self.proto, Some(json!({ "on_off": 0 })), &mut cache)
             .map(|state| log::trace!("{:?}", state))
     }
 }

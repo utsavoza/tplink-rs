@@ -3,7 +3,7 @@ use crate::command::sysinfo::SystemInfo;
 use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
 use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::Result;
-use crate::proto::{self, Proto};
+use crate::proto::{self, Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -69,28 +69,40 @@ impl HS100 {
     }
 
     pub(super) fn turn_on_led(&mut self) -> Result<()> {
-        self.proto
-            .send_command("system", "set_led_off", Some(&json!({ "off": false })))?;
+        self.proto.send_request(&Request::from(
+            "system",
+            "set_led_off",
+            Some(json!({ "off": false })),
+        ))?;
         Ok(())
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
-        self.proto
-            .send_command("system", "set_led_off", Some(&json!({ "off": true })))?;
+        self.proto.send_request(&Request::from(
+            "system",
+            "set_led_off",
+            Some(json!({ "off": true })),
+        ))?;
         Ok(())
     }
 }
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
-        self.proto
-            .send_command("system", "set_relay_state", Some(&json!({ "state": 1 })))?;
+        self.proto.send_request(&Request::from(
+            "system",
+            "set_relay_state",
+            Some(json!({ "state": 1 })),
+        ))?;
         Ok(())
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.proto
-            .send_command("system", "set_relay_state", Some(&json!({ "state": 0 })))?;
+        self.proto.send_request(&Request::from(
+            "system",
+            "set_relay_state",
+            Some(json!({ "state": 0 })),
+        ))?;
         Ok(())
     }
 }

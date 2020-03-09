@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::proto::Proto;
+use crate::proto::{Proto, Request};
 
 use serde::de::DeserializeOwned;
 use serde::export::PhantomData;
@@ -29,17 +29,15 @@ impl<T> SystemInfo<T> {
 impl<T: DeserializeOwned> SystemInfo<T> {
     pub(crate) fn get_sysinfo(&self, proto: &Proto) -> Result<T> {
         proto
-            .send_command("system", "get_sysinfo", None)
-            .map(|mut value| {
-                serde_json::from_value(value["system"]["get_sysinfo"].take()).unwrap_or_else(
-                    |err| {
-                        panic!(
-                            "invalid response from host with address {}: {}",
-                            proto.host(),
-                            err
-                        )
-                    },
-                )
+            .send_request(&Request::from("system", "get_sysinfo", None))
+            .map(|response| {
+                serde_json::from_value(response).unwrap_or_else(|err| {
+                    panic!(
+                        "invalid response from host with address {}: {}",
+                        proto.host(),
+                        err
+                    )
+                })
             })
     }
 }

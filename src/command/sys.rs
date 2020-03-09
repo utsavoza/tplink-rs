@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::proto::Proto;
+use crate::proto::{Proto, Request};
 
 use serde_json::json;
 use std::time::Duration;
@@ -29,17 +29,21 @@ impl System {
 
     pub(crate) fn reboot(&self, proto: &Proto, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        let res =
-            proto.send_command(&self.ns, "reboot", Some(&json!({ "delay": delay_in_secs })))?;
-        log::debug!("{:?}", res);
+        proto.send_request(&Request::from(
+            &self.ns,
+            "reboot",
+            Some(json!({ "delay": delay_in_secs })),
+        ))?;
         Ok(())
     }
 
     pub(crate) fn factory_reset(&self, proto: &Proto, delay: Option<Duration>) -> Result<()> {
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        let res =
-            proto.send_command(&self.ns, "reset", Some(&json!({ "delay": delay_in_secs })))?;
-        log::debug!("{:?}", res);
+        proto.send_request(&Request::from(
+            &self.ns,
+            "reset",
+            Some(json!({ "delay": delay_in_secs })),
+        ))?;
         Ok(())
     }
 }

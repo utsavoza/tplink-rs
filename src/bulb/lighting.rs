@@ -1,8 +1,10 @@
+use crate::cache::Cache;
 use crate::error::Result;
-use crate::proto::Proto;
+use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::cell::RefMut;
 
 pub(super) struct Lighting {
     ns: String,
@@ -13,20 +15,49 @@ impl Lighting {
         Lighting { ns: ns.into() }
     }
 
-    pub(super) fn get_light_state(&self, proto: &Proto) -> Result<LightState> {
-        proto
-            .send_command(&self.ns, "get_light_state", None)
-            .map(|mut value| {
-                serde_json::from_value(value[&self.ns]["get_light_state"].take()).unwrap()
-            })
+    pub(super) fn get_light_state(
+        &self,
+        proto: &Proto,
+        cache: &mut RefMut<Cache<Request, Value>>,
+    ) -> Result<LightState> {
+        let request = Request::from(&self.ns, "get_light_state", None);
+        let response = match cache.get(&request) {
+            Some(value) => {
+                log::trace!("retrieving from cache: {:?}", value);
+                value.to_owned()
+            }
+            None => {
+                let value = proto.send_request(&request)?;
+                cache.insert(request, value.to_owned());
+                value
+            }
+        };
+        Ok(serde_json::from_value(response).unwrap_or_else(|err| {
+            panic!(
+                "invalid response from host with address {}: {}",
+                proto.host(),
+                err
+            )
+        }))
     }
 
-    pub(super) fn set_light_state(&self, proto: &Proto, arg: Option<&Value>) -> Result<LightState> {
-        proto
-            .send_command(&self.ns, "transition_light_state", arg)
-            .map(|mut value| {
-                serde_json::from_value(value[&self.ns]["transition_light_state"].take()).unwrap()
+    pub(super) fn set_light_state(
+        &self,
+        proto: &Proto,
+        arg: Option<Value>,
+        cache: &mut RefMut<Cache<Request, Value>>,
+    ) -> Result<LightState> {
+        let request = Request::from(&self.ns, "transition_light_state", arg);
+        cache.retain(|k, _| k.target != self.ns);
+        proto.send_request(&request).map(|response| {
+            serde_json::from_value(response).unwrap_or_else(|err| {
+                panic!(
+                    "invalid response from host with address {}: {}",
+                    proto.host(),
+                    err
+                )
             })
+        })
     }
 }
 
