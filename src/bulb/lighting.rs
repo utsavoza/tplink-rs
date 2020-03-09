@@ -52,6 +52,7 @@ impl LightState {
     }
 }
 
+/// The HSV (Hue, Saturation, Value) state of the bulb.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HSV {
     mode: Option<String>,
@@ -62,17 +63,20 @@ pub struct HSV {
 }
 
 impl HSV {
-    // degrees (0-360)
+    /// Returns the `hue` (color portion) of the HSV model, expressed
+    /// as a number from 0 to 360 degrees.
     pub fn hue(&self) -> u64 {
         self.hue
     }
 
-    // % (0-100)
+    /// Returns the `saturation` (amount of gray in particular color)
+    /// of the HSV model, expressed as a number from 0 to 100 percent.
     pub fn saturation(&self) -> u64 {
         self.saturation
     }
 
-    // % (0-100)
+    /// Returns the `value` or `brightness` (intensity of the color)
+    /// of the HSV model, expressed as a number from 0 to 100 percent.
     pub fn value(&self) -> u64 {
         self.brightness
     }

@@ -4,9 +4,13 @@ use crate::proto::Proto;
 use serde::de::DeserializeOwned;
 use serde::export::PhantomData;
 
+/// The `SysInfo` trait represents devices that are capable of
+/// returning their system information.
 pub trait SysInfo {
+    /// The type of system information returned by the device.
     type Info;
 
+    /// Attempt to fetch the system information from the device.
     fn sysinfo(&self) -> Result<Self::Info>;
 }
 

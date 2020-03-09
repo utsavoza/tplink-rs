@@ -134,7 +134,8 @@ impl<T: Time> Bulb<T> {
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
-    /// let time = bulb.time()?; // e.g. `2020-04-08 22:29:07`
+    /// let device_time = bulb.time()?;
+    /// println!("{}", device_time); // e.g. `2020-04-08 22:29:07`
     /// # Ok(())
     /// # }
     /// ```

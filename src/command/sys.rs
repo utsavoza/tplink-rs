@@ -4,8 +4,17 @@ use crate::proto::Proto;
 use serde_json::json;
 use std::time::Duration;
 
+/// The `Sys` trait represents devices that are capable of performing
+/// system commands.
 pub trait Sys {
+    /// Reboots the device after the given duration. In case when the duration
+    /// isn't provided, the device is set to reboot after a default duration
+    /// of 1 second.
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()>;
+
+    /// Factory resets the device after the given duration. In case when the
+    /// duration isn't provided, the device is set to reset after a default duration
+    /// of 1 second.
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()>;
 }
 

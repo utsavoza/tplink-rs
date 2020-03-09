@@ -11,6 +11,7 @@ use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
+/// A TP-Link Wi-Fi Smart Plug (HS100).
 pub struct HS100 {
     proto: Proto,
     system: System,
@@ -19,7 +20,6 @@ pub struct HS100 {
 }
 
 impl HS100 {
-    // TODO: validate host before returning the instance
     pub(super) fn new<A>(host: A) -> HS100
     where
         A: Into<IpAddr>,
@@ -123,6 +123,7 @@ impl SysInfo for HS100 {
     }
 }
 
+/// The system information of TP-Link Wi-Fi Smart Plug (HS100).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HS100Info {
     sw_ver: String,
@@ -141,6 +142,7 @@ pub struct HS100Info {
     other: Map<String, Value>,
 }
 
+/// The location coordinates of the device.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Location {
     #[serde(rename = "longitude_i")]
@@ -156,38 +158,47 @@ impl fmt::Display for Location {
 }
 
 impl HS100Info {
+    /// Returns the software version of the device.
     pub fn sw_ver(&self) -> &str {
         &self.sw_ver
     }
 
+    /// Returns the hardware version of the device.
     pub fn hw_ver(&self) -> &str {
         &self.hw_ver
     }
 
+    /// Returns the model of the device.
     pub fn model(&self) -> &str {
         &self.model
     }
 
+    /// Returns the name (alias) of the device.
     pub fn alias(&self) -> &str {
         &self.alias
     }
 
+    /// Returns the mac address of the device.
     pub fn mac_address(&self) -> &str {
         &self.mac
     }
 
+    /// Returns the Wi-Fi signal strength (rssi) of the device.
     pub fn rssi(&self) -> i64 {
         self.rssi
     }
 
+    /// Returns the location of the device.
     pub fn location(&self) -> &Location {
         &self.location
     }
 
+    /// Returns whether the device is on.
     fn is_on(&self) -> bool {
         self.relay_state == 1
     }
 
+    /// Returns whether the device LED is on.
     fn is_led_on(&self) -> bool {
         self.led_off == 0
     }

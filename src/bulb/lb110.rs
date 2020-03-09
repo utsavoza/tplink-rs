@@ -12,6 +12,7 @@ use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
+/// A TP-Link Wi-Fi LED Smart Bulb (LB110).
 pub struct LB110 {
     proto: Proto,
     system: System,
@@ -21,7 +22,6 @@ pub struct LB110 {
 }
 
 impl LB110 {
-    // TODO: validate host before returning the instance
     pub(super) fn new<A>(host: A) -> LB110
     where
         A: Into<IpAddr>,
@@ -125,6 +125,7 @@ impl SysInfo for LB110 {
     }
 }
 
+/// The system information of TP-Link Smart Wi-Fi LED Bulb (LB110).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LB110Info {
     sw_ver: String,
@@ -144,42 +145,52 @@ pub struct LB110Info {
 }
 
 impl LB110Info {
+    /// Returns the software version of the device.
     pub fn sw_ver(&self) -> &str {
         &self.sw_ver
     }
 
+    /// Returns the hardware version of the device.
     pub fn hw_ver(&self) -> &str {
         &self.hw_ver
     }
 
+    /// Returns the model of the device.
     pub fn model(&self) -> &str {
         &self.model
     }
 
+    /// Returns the name (alias) of the device.
     pub fn alias(&self) -> &str {
         &self.alias
     }
 
+    /// Returns the mac address of the device.
     pub fn mac_address(&self) -> &str {
         &self.mic_mac
     }
 
+    /// Returns whether the bulb supports brightness changes.
     pub fn is_dimmable(&self) -> bool {
         self.is_dimmable == 1
     }
 
+    /// Returns whether the bulb supports color changes.
     pub fn is_color(&self) -> bool {
         self.is_color == 1
     }
 
+    /// Returns whether the bulb supports color temperature changes.
     pub fn is_variable_color_temp(&self) -> bool {
         self.is_variable_color_temp == 1
     }
 
+    /// Returns the Wi-Fi signal strength (rssi) of the device.
     pub fn rssi(&self) -> i64 {
         self.rssi
     }
 
+    /// Returns the current HSV (Hue, Saturation, Value) state of the bulb.
     pub fn hsv(&self) -> Result<HSV> {
         if self.is_color == 1 {
             Ok(self.light_state.hsv())
