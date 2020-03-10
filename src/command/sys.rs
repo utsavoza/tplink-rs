@@ -1,7 +1,9 @@
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
-use serde_json::json;
+use crate::cache::Cache;
+use serde_json::{json, Value};
+use std::cell::RefMut;
 use std::time::Duration;
 
 /// The `Sys` trait represents devices that are capable of performing
@@ -27,23 +29,33 @@ impl System {
         System { ns: ns.into() }
     }
 
-    pub(crate) fn reboot(&self, proto: &Proto, delay: Option<Duration>) -> Result<()> {
+    pub(crate) fn reboot(
+        &self,
+        proto: &Proto,
+        delay: Option<Duration>,
+        cache: &mut RefMut<Cache<Request, Value>>,
+    ) -> Result<Value> {
+        cache.clear();
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         proto.send_request(&Request::from(
             &self.ns,
             "reboot",
             Some(json!({ "delay": delay_in_secs })),
-        ))?;
-        Ok(())
+        ))
     }
 
-    pub(crate) fn factory_reset(&self, proto: &Proto, delay: Option<Duration>) -> Result<()> {
+    pub(crate) fn factory_reset(
+        &self,
+        proto: &Proto,
+        delay: Option<Duration>,
+        cache: &mut RefMut<Cache<Request, Value>>,
+    ) -> Result<Value> {
+        cache.clear();
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
         proto.send_request(&Request::from(
             &self.ns,
             "reset",
             Some(json!({ "delay": delay_in_secs })),
-        ))?;
-        Ok(())
+        ))
     }
 }

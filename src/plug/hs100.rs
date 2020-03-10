@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::command::sys::System;
 use crate::command::sysinfo::SystemInfo;
 use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
@@ -7,6 +8,7 @@ use crate::proto::{self, Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
@@ -17,6 +19,7 @@ pub struct HS100 {
     system: System,
     time_setting: TimeSetting,
     sysinfo: SystemInfo<HS100Info>,
+    cache: RefCell<Cache<Request, Value>>,
 }
 
 impl HS100 {
@@ -29,6 +32,7 @@ impl HS100 {
             system: System::new("system"),
             time_setting: TimeSetting::new("time"),
             sysinfo: SystemInfo::new(),
+            cache: RefCell::new(Cache::with_ttl(Duration::from_secs(3))),
         }
     }
 
@@ -69,51 +73,65 @@ impl HS100 {
     }
 
     pub(super) fn turn_on_led(&mut self) -> Result<()> {
-        self.proto.send_request(&Request::from(
-            "system",
-            "set_led_off",
-            Some(json!({ "off": false })),
-        ))?;
-        Ok(())
+        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        self.proto
+            .send_request(&Request::from(
+                "system",
+                "set_led_off",
+                Some(json!({ "off": false })),
+            ))
+            .map(|response| log::trace!("{:?}", response))
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
-        self.proto.send_request(&Request::from(
-            "system",
-            "set_led_off",
-            Some(json!({ "off": true })),
-        ))?;
-        Ok(())
+        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        self.proto
+            .send_request(&Request::from(
+                "system",
+                "set_led_off",
+                Some(json!({ "off": true })),
+            ))
+            .map(|response| log::trace!("{:?}", response))
     }
 }
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
-        self.proto.send_request(&Request::from(
-            "system",
-            "set_relay_state",
-            Some(json!({ "state": 1 })),
-        ))?;
-        Ok(())
+        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        self.proto
+            .send_request(&Request::from(
+                "system",
+                "set_relay_state",
+                Some(json!({ "state": 1 })),
+            ))
+            .map(|response| log::trace!("{:?}", response))
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.proto.send_request(&Request::from(
-            "system",
-            "set_relay_state",
-            Some(json!({ "state": 0 })),
-        ))?;
-        Ok(())
+        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        self.proto
+            .send_request(&Request::from(
+                "system",
+                "set_relay_state",
+                Some(json!({ "state": 0 })),
+            ))
+            .map(|response| log::trace!("{:?}", response))
     }
 }
 
 impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, delay)
+        let mut cache = self.cache.borrow_mut();
+        self.system
+            .reboot(&self.proto, delay, &mut cache)
+            .map(|response| log::trace!("{:?}", response))
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.factory_reset(&self.proto, delay)
+        let mut cache = self.cache.borrow_mut();
+        self.system
+            .factory_reset(&self.proto, delay, &mut cache)
+            .map(|response| log::trace!("{:?}", response))
     }
 }
 
@@ -131,7 +149,8 @@ impl SysInfo for HS100 {
     type Info = HS100Info;
 
     fn sysinfo(&self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto)
+        let mut cache = self.cache.borrow_mut();
+        self.sysinfo.get_sysinfo(&self.proto, &mut cache)
     }
 }
 

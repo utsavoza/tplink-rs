@@ -1,8 +1,11 @@
+use crate::cache::Cache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
 use serde::de::DeserializeOwned;
 use serde::export::PhantomData;
+use serde_json::Value;
+use std::cell::RefMut;
 
 /// The `SysInfo` trait represents devices that are capable of
 /// returning their system information.
@@ -27,17 +30,30 @@ impl<T> SystemInfo<T> {
 }
 
 impl<T: DeserializeOwned> SystemInfo<T> {
-    pub(crate) fn get_sysinfo(&self, proto: &Proto) -> Result<T> {
-        proto
-            .send_request(&Request::from("system", "get_sysinfo", None))
-            .map(|response| {
-                serde_json::from_value(response).unwrap_or_else(|err| {
-                    panic!(
-                        "invalid response from host with address {}: {}",
-                        proto.host(),
-                        err
-                    )
-                })
-            })
+    pub(crate) fn get_sysinfo(
+        &self,
+        proto: &Proto,
+        cache: &mut RefMut<Cache<Request, Value>>,
+    ) -> Result<T> {
+        let request = Request::from("system", "get_sysinfo", None);
+        let response = match cache.get(&request) {
+            Some(value) => {
+                log::trace!("retrieving from cache: {:?}", value);
+                value.to_owned()
+            },
+            None => {
+                let value = proto.send_request(&request)?;
+                log::trace!("storing in cache: {:?}", value);
+                cache.insert(request, value.to_owned());
+                value
+            }
+        };
+        Ok(serde_json::from_value(response).unwrap_or_else(|err| {
+            panic!(
+                "invalid response from host with address {}: {}",
+                proto.host(),
+                err
+            )
+        }))
     }
 }

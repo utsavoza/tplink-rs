@@ -22,10 +22,7 @@ impl Lighting {
     ) -> Result<LightState> {
         let request = Request::from(&self.ns, "get_light_state", None);
         let response = match cache.get(&request) {
-            Some(value) => {
-                log::trace!("retrieving from cache: {:?}", value);
-                value.to_owned()
-            }
+            Some(value) => value.to_owned(),
             None => {
                 let value = proto.send_request(&request)?;
                 cache.insert(request, value.to_owned());
@@ -47,17 +44,18 @@ impl Lighting {
         arg: Option<Value>,
         cache: &mut RefMut<Cache<Request, Value>>,
     ) -> Result<LightState> {
-        let request = Request::from(&self.ns, "transition_light_state", arg);
         cache.retain(|k, _| k.target != self.ns);
-        proto.send_request(&request).map(|response| {
-            serde_json::from_value(response).unwrap_or_else(|err| {
-                panic!(
-                    "invalid response from host with address {}: {}",
-                    proto.host(),
-                    err
-                )
+        proto
+            .send_request(&Request::from(&self.ns, "transition_light_state", arg))
+            .map(|response| {
+                serde_json::from_value(response).unwrap_or_else(|err| {
+                    panic!(
+                        "invalid response from host with address {}: {}",
+                        proto.host(),
+                        err
+                    )
+                })
             })
-        })
     }
 }
 

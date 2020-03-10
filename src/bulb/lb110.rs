@@ -59,6 +59,10 @@ impl LB110 {
         self.sysinfo().map(|sysinfo| sysinfo.mic_mac)
     }
 
+    pub(super) fn rssi(&self) -> Result<i64> {
+        self.sysinfo().map(|sysinfo| sysinfo.rssi)
+    }
+
     pub(super) fn is_dimmable(&self) -> Result<bool> {
         self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())
     }
@@ -70,10 +74,6 @@ impl LB110 {
     pub(super) fn is_variable_color_temp(&self) -> Result<bool> {
         self.sysinfo()
             .map(|sysinfo| sysinfo.is_variable_color_temp())
-    }
-
-    pub(super) fn rssi(&self) -> Result<i64> {
-        self.sysinfo().map(|sysinfo| sysinfo.rssi())
     }
 
     pub(super) fn hsv(&self) -> Result<HSV> {
@@ -106,11 +106,17 @@ impl Device for LB110 {
 
 impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, delay)
+        let mut cache = self.cache.borrow_mut();
+        self.system
+            .reboot(&self.proto, delay, &mut cache)
+            .map(|response| log::trace!("{:?}", response))
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.factory_reset(&self.proto, delay)
+        let mut cache = self.cache.borrow_mut();
+        self.system
+            .factory_reset(&self.proto, delay, &mut cache)
+            .map(|response| log::trace!("{:?}", response))
     }
 }
 
@@ -128,7 +134,8 @@ impl SysInfo for LB110 {
     type Info = LB110Info;
 
     fn sysinfo(&self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto)
+        let mut cache = self.cache.borrow_mut();
+        self.sysinfo.get_sysinfo(&self.proto, &mut cache)
     }
 }
 
