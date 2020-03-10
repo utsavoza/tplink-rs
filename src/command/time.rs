@@ -27,7 +27,7 @@ impl TimeSetting {
 
     pub(crate) fn get_time(&self, proto: &Proto) -> Result<DeviceTime> {
         proto
-            .send_request(&Request::from(&self.ns, "get_time", None))
+            .send_request(&Request::new(&self.ns, "get_time", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
                     panic!(
@@ -41,7 +41,7 @@ impl TimeSetting {
 
     pub(crate) fn get_timezone(&self, proto: &Proto) -> Result<DeviceTimeZone> {
         proto
-            .send_request(&Request::from(&self.ns, "get_timezone", None))
+            .send_request(&Request::new(&self.ns, "get_timezone", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
                     panic!(

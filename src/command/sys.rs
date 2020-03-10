@@ -37,7 +37,7 @@ impl System {
     ) -> Result<Value> {
         cache.clear();
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        proto.send_request(&Request::from(
+        proto.send_request(&Request::new(
             &self.ns,
             "reboot",
             Some(json!({ "delay": delay_in_secs })),
@@ -52,7 +52,7 @@ impl System {
     ) -> Result<Value> {
         cache.clear();
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        proto.send_request(&Request::from(
+        proto.send_request(&Request::new(
             &self.ns,
             "reset",
             Some(json!({ "delay": delay_in_secs })),

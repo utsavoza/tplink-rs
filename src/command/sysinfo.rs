@@ -35,7 +35,7 @@ impl<T: DeserializeOwned> SystemInfo<T> {
         proto: &Proto,
         cache: &mut RefMut<Cache<Request, Value>>,
     ) -> Result<T> {
-        let request = Request::from("system", "get_sysinfo", None);
+        let request = Request::new("system", "get_sysinfo", None);
         let response = match cache.get(&request) {
             Some(value) => {
                 log::trace!("retrieving from cache: {:?}", value);

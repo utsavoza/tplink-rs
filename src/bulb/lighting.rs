@@ -20,7 +20,7 @@ impl Lighting {
         proto: &Proto,
         cache: &mut RefMut<Cache<Request, Value>>,
     ) -> Result<LightState> {
-        let request = Request::from(&self.ns, "get_light_state", None);
+        let request = Request::new(&self.ns, "get_light_state", None);
         let response = match cache.get(&request) {
             Some(value) => value.to_owned(),
             None => {
@@ -46,7 +46,7 @@ impl Lighting {
     ) -> Result<LightState> {
         cache.retain(|k, _| k.target != self.ns);
         proto
-            .send_request(&Request::from(&self.ns, "transition_light_state", arg))
+            .send_request(&Request::new(&self.ns, "transition_light_state", arg))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
                     panic!(

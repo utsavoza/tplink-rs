@@ -14,7 +14,7 @@ pub(crate) struct Request {
 }
 
 impl Request {
-    pub(crate) fn from(target: &str, command: &str, arg: Option<Value>) -> Request {
+    pub(crate) fn new(target: &str, command: &str, arg: Option<Value>) -> Request {
         Request {
             target: target.into(),
             command: command.into(),

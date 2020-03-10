@@ -75,7 +75,7 @@ impl HS100 {
     pub(super) fn turn_on_led(&mut self) -> Result<()> {
         self.cache.borrow_mut().retain(|k, _| k.target != "system");
         self.proto
-            .send_request(&Request::from(
+            .send_request(&Request::new(
                 "system",
                 "set_led_off",
                 Some(json!({ "off": false })),
@@ -86,7 +86,7 @@ impl HS100 {
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
         self.cache.borrow_mut().retain(|k, _| k.target != "system");
         self.proto
-            .send_request(&Request::from(
+            .send_request(&Request::new(
                 "system",
                 "set_led_off",
                 Some(json!({ "off": true })),
@@ -99,7 +99,7 @@ impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
         self.cache.borrow_mut().retain(|k, _| k.target != "system");
         self.proto
-            .send_request(&Request::from(
+            .send_request(&Request::new(
                 "system",
                 "set_relay_state",
                 Some(json!({ "state": 1 })),
@@ -110,7 +110,7 @@ impl Device for HS100 {
     fn turn_off(&mut self) -> Result<()> {
         self.cache.borrow_mut().retain(|k, _| k.target != "system");
         self.proto
-            .send_request(&Request::from(
+            .send_request(&Request::new(
                 "system",
                 "set_relay_state",
                 Some(json!({ "state": 0 })),
