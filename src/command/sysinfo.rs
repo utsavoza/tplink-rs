@@ -40,7 +40,7 @@ impl<T: DeserializeOwned> SystemInfo<T> {
             Some(value) => {
                 log::trace!("retrieving from cache: {:?}", value);
                 value.to_owned()
-            },
+            }
             None => {
                 let value = proto.send_request(&request)?;
                 log::trace!("storing in cache: {:?}", value);
