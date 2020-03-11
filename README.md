@@ -3,6 +3,13 @@ tplink-rs
 
 A simple client library to control TP-Link smart home devices.
 
+## Currently Supported Devices
+
+| Device  | Model         |
+|---------|---------------|
+| Plug    | HS100         |
+| Bulb    | LB100, LB110  |
+
 ## Example
 Add tplink-rs to your dependencies:
 ```toml

@@ -378,4 +378,55 @@ impl Bulb<LB110> {
     pub fn has_emeter(&self) -> Result<bool> {
         Ok(true)
     }
+
+    /// Sets the hue of the bulb, if the bulb supports color changes.
+    /// Hue is color portion of the HSV model which is expressed as a
+    /// number from 0 to 360 degrees.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.set_hue(140)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_hue(&mut self, hue: u64) -> Result<()> {
+        self.device.set_hue(hue)
+    }
+
+    /// Sets the % saturation of the bulb, if the bulb supports color changes.
+    /// Saturation determines the amount of gray in a particular color and is
+    /// expressed as a number from 0 to 100 percent.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.set_saturation(70)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_saturation(&mut self, saturation: u64) -> Result<()> {
+        self.device.set_saturation(saturation)
+    }
+
+    /// Sets the % brightness of the bulb, if bulb supports brightness changes.
+    /// Brightness determines the intensity of the color and is expressed
+    /// as a number from 0 to 100 percent.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.set_brightness(30)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_brightness(&mut self, brightness: u64) -> Result<()> {
+        self.device.set_brightness(brightness)
+    }
 }

@@ -86,6 +86,74 @@ impl LB110 {
             .get_light_state(&self.proto, &mut cache)
             .map(|light_state| light_state.is_on())
     }
+
+    pub(super) fn set_hue(&mut self, hue: u64) -> Result<()> {
+        let is_color = self.sysinfo().map(|sysinfo| sysinfo.is_color())?;
+        let is_valid_hue = (0..=360).contains(&hue);
+        if is_color && is_valid_hue {
+            let mut cache = self.cache.borrow_mut();
+            self.lighting
+                .set_light_state(&self.proto, Some(json!({ "hue": hue })), &mut cache)
+                .map(|response| log::trace!("{:?}", response))
+        } else if !is_valid_hue {
+            Err(error::invalid_parameter(&format!(
+                "set_hue: {} (valid range: 0-360)",
+                hue
+            )))
+        } else {
+            Err(error::unsupported_operation(&format!("set_hue: {}", hue)))
+        }
+    }
+
+    pub(super) fn set_saturation(&mut self, saturation: u64) -> Result<()> {
+        let is_color = self.sysinfo().map(|sysinfo| sysinfo.is_color())?;
+        let is_valid_saturation = (0..=100).contains(&saturation);
+        if is_color && is_valid_saturation {
+            let mut cache = self.cache.borrow_mut();
+            self.lighting
+                .set_light_state(
+                    &self.proto,
+                    Some(json!({ "saturation": saturation })),
+                    &mut cache,
+                )
+                .map(|response| log::trace!("{:?}", response))
+        } else if !is_valid_saturation {
+            Err(error::invalid_parameter(&format!(
+                "set_saturation: {}% (valid range: 0-100%)",
+                saturation
+            )))
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "set_saturation: {}%",
+                saturation
+            )))
+        }
+    }
+
+    pub(super) fn set_brightness(&mut self, brightness: u64) -> Result<()> {
+        let is_dimmable = self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())?;
+        let is_valid_brightness = (0..=100).contains(&brightness);
+        if is_dimmable && is_valid_brightness {
+            let mut cache = self.cache.borrow_mut();
+            self.lighting
+                .set_light_state(
+                    &self.proto,
+                    Some(json!({ "brightness": brightness })),
+                    &mut cache,
+                )
+                .map(|response| log::trace!("{:?}", response))
+        } else if !is_valid_brightness {
+            Err(error::invalid_parameter(&format!(
+                "set_brightness: {}% (valid range: 0-100%)",
+                brightness
+            )))
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "set_brightness: {}%",
+                brightness
+            )))
+        }
+    }
 }
 
 impl Device for LB110 {

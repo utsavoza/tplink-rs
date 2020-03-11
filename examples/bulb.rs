@@ -8,6 +8,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     bulb.turn_on()?;
     assert_eq!(bulb.is_on()?, true);
 
+    if let Err(e) = bulb.set_brightness(0) {
+        println!("{}", e);
+    }
+
     bulb.turn_off()?;
     assert_eq!(bulb.is_on()?, false);
 
