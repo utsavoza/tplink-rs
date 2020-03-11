@@ -3,13 +3,6 @@ tplink-rs
 
 A simple client library to control TP-Link smart home devices.
 
-## Currently Supported Devices
-
-| Device  | Model         |
-|---------|---------------|
-| Plug    | HS100         |
-| Bulb    | LB100, LB110  |
-
 ## Example
 Add tplink-rs to your dependencies:
 ```toml
@@ -30,6 +23,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+## Currently Supported Devices
+
+| Device  | Model         |
+|---------|---------------|
+| Plug    | HS100         |
+| Bulb    | LB100, LB110  |
+
+
 ## License
 
 Licensed under either of
