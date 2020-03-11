@@ -14,7 +14,7 @@ tplink-rs = "0.1"
 ```
 And then in your `main.rs`
 -->
-### Example - Discover
+### Discover
 
 Discover existing TP-Link devices on your network.
 
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Example - Bulb
+### Bulb
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
@@ -65,11 +65,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Example - Plug
+### Plug
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-
     let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     println!("alias: {}", plug.alias()?);
     println!("location: {}", plug.location()?);
