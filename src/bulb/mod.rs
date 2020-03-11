@@ -1,7 +1,8 @@
 mod lb110;
 mod lighting;
 
-use crate::bulb::lb110::LB110;
+pub use crate::bulb::lb110::LB110;
+
 use crate::bulb::lighting::HSV;
 use crate::command::time::{DeviceTime, DeviceTimeZone};
 use crate::command::{Device, Sys, SysInfo, Time};

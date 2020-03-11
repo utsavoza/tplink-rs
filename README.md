@@ -5,7 +5,7 @@ tplink-rs
 
 A simple library to control TP-Link smart home devices.
 
-## Example
+## Examples
 <!--
 Add tplink-rs to your dependencies:
 ```toml
@@ -14,6 +14,39 @@ tplink-rs = "0.1"
 ```
 And then in your `main.rs`
 -->
+### Example - Discover
+
+Discover existing TP-Link devices on your network.
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    for (ip, device) in tplink::discover()? {
+        match device {
+            tplink::DeviceKind::Plug(mut plug) => {
+                println!("[{}] => {}", ip, plug.alias()?);
+                
+                plug.turn_on()?;
+                assert_eq!(plug.is_on()?, true);
+            },
+            tplink::DeviceKind::Bulb(mut bulb) => {
+                println!("[{}] => {}", ip, bulb.alias()?);
+
+                bulb.turn_on()?;
+                assert_eq!(bulb.is_on()?, true);
+
+                if bulb.is_dimmable()? {
+                    bulb.set_brightness(0)?;
+                }
+            },
+            _ => println!("unrecognised device found with local address: {}", ip),
+        }
+    }   
+
+    Ok(())
+}
+```
+
+### Example - Bulb
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
@@ -31,6 +64,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Example - Plug
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
+    let mut plug = tplink::Plug::new([192, 168, 1, 100]);
+    println!("alias: {}", plug.alias()?);
+    println!("location: {}", plug.location()?);
+
+    plug.turn_on()?;
+    assert_eq!(plug.is_on()?, true);
+
+    plug.turn_on_led()?;
+    assert_eq!(plug.is_led_on()?, true);
+
+    Ok(())
+}
+```
+
 More examples can be found [here](examples).
 
 ## Currently Supported Devices

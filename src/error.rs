@@ -38,6 +38,9 @@ pub enum ErrorKind {
     /// An error of this kind occurs when a valid operation is
     /// requested by the client with an invalid parameter.
     InvalidParameter(String),
+
+    #[doc(hidden)]
+    __NonExhaustive,
 }
 
 impl fmt::Display for Error {
@@ -47,6 +50,7 @@ impl fmt::Display for Error {
             ErrorKind::Json(ref e) => e.fmt(f),
             ErrorKind::UnsupportedOperation(ref op) => write!(f, "unsupported operation: {}", op),
             ErrorKind::InvalidParameter(ref param) => write!(f, "invalid parameter: {}", param),
+            _ => unreachable!(),
         }
     }
 }

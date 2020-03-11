@@ -2,7 +2,9 @@ use crate::crypto;
 use crate::error::{self, Result};
 
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
@@ -44,6 +46,8 @@ pub(crate) struct Builder {
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
+    broadcast: bool,
+    offline_tolerance: u32,
 }
 
 impl Builder {
@@ -57,6 +61,8 @@ impl Builder {
             buffer_size: 4096,
             read_timeout: None,
             write_timeout: None,
+            broadcast: false,
+            offline_tolerance: 1,
         }
     }
 
@@ -69,6 +75,7 @@ impl Builder {
             .buffer_size(4096)
             .read_timeout(Duration::from_secs(3))
             .write_timeout(Duration::from_secs(3))
+            .broadcast(false)
             .build()
     }
 
@@ -92,12 +99,24 @@ impl Builder {
         self
     }
 
+    pub(crate) fn broadcast(&mut self, broadcast: bool) -> &mut Builder {
+        self.broadcast = broadcast;
+        self
+    }
+
+    pub(crate) fn offline_tolerance(&mut self, offline_tolerance: u32) -> &mut Builder {
+        self.offline_tolerance = offline_tolerance;
+        self
+    }
+
     pub(crate) fn build(&mut self) -> Proto {
         Proto {
             addr: SocketAddr::new(self.host, self.port),
             buffer_size: self.buffer_size,
             read_timeout: self.read_timeout,
             write_timeout: self.write_timeout,
+            broadcast: self.broadcast,
+            offline_tolerance: self.offline_tolerance,
         }
     }
 }
@@ -107,11 +126,44 @@ pub(crate) struct Proto {
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
+    broadcast: bool,
+    offline_tolerance: u32,
 }
 
 impl Proto {
     pub(crate) fn host(&self) -> IpAddr {
         self.addr.ip()
+    }
+
+    pub(crate) fn discover(&self, req: &[u8]) -> Result<HashMap<IpAddr, Vec<u8>>> {
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+
+        socket.set_broadcast(self.broadcast)?;
+        socket.set_read_timeout(self.read_timeout)?;
+        socket.set_write_timeout(self.write_timeout)?;
+
+        for _ in 0..self.offline_tolerance {
+            socket.send_to(&crypto::encrypt(req), &self.addr)?;
+        }
+
+        let mut responses = HashMap::new();
+        let mut buf = vec![0; self.buffer_size];
+        loop {
+            match socket.recv_from(&mut buf) {
+                Ok((recv, addr)) => {
+                    responses
+                        .entry(addr.ip())
+                        .or_insert_with(|| crypto::decrypt(&buf[..recv]));
+                }
+                Err(e) => {
+                    return if e.kind() == ErrorKind::WouldBlock {
+                        Ok(responses)
+                    } else {
+                        Err(e.into())
+                    }
+                }
+            }
+        }
     }
 
     pub(crate) fn send_request(&self, req: &Request) -> Result<Value> {
@@ -133,9 +185,13 @@ impl Proto {
     fn send_bytes(&self, req: &[u8]) -> Result<Vec<u8>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
 
+        socket.set_broadcast(self.broadcast)?;
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
-        socket.send_to(&crypto::encrypt(req), self.addr)?;
+
+        for _ in 0..self.offline_tolerance {
+            socket.send_to(&crypto::encrypt(req), self.addr)?;
+        }
 
         let mut buf = vec![0; self.buffer_size];
         match socket.recv(&mut buf) {
