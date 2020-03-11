@@ -1,28 +1,37 @@
 tplink-rs
 =========
 
-A simple client library to control TP-Link smart home devices.
+[![CI](https://github.com/utsavoza/tplink-rs/workflows/CI/badge.svg)](https://github.com/utsavoza/tplink-rs/actions?query=workflow%3ACI)
+
+A simple library to control TP-Link smart home devices.
 
 ## Example
+<!--
 Add tplink-rs to your dependencies:
 ```toml
 [dependencies]
 tplink-rs = "0.1"
 ```
 And then in your `main.rs`
+-->
 ```rust
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
     
     bulb.turn_on()?;
     assert_eq!(bulb.is_on()?, true);
-    
+
+    if let Err(e) = bulb.set_brightness(60) {
+        println!("{}", e);
+    }
+
     bulb.turn_off()?;
     assert_eq!(bulb.is_on()?, false);
 
     Ok(())
 }
 ```
+More examples can be found [here](examples).
 
 ## Currently Supported Devices
 
@@ -43,7 +52,7 @@ Licensed under either of
 
 at your option.
 
-## Contribution
+### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be

@@ -1,6 +1,9 @@
 [package]
 name = "tplink"
 version = "0.1.0"
+description = "A simple library to control TP-Link smart home devices."
+keywords = ["tplink", "kasa", "bulb", "plug"]
+repository = "https://github.com/utsavoza/tplink-rs"
 authors = ["Utsav Oza <utsavoza96@gmail.com>"]
 edition = "2018"
 license = "MIT or Apache-2.0"
