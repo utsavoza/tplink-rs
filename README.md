@@ -3,14 +3,14 @@ tplink-rs
 
 [![CI](https://github.com/utsavoza/tplink-rs/workflows/CI/badge.svg)](https://github.com/utsavoza/tplink-rs/actions?query=workflow%3ACI)
 
-A simple library to control TP-Link smart home devices.
+A simple library to control TP-Link Smart Home devices.
 
 ## Examples
 <!--
 Add tplink-rs to your dependencies:
 ```toml
 [dependencies]
-tplink-rs = "0.1"
+tplink = "0.1"
 ```
 And then in your `main.rs`
 -->
@@ -19,67 +19,32 @@ And then in your `main.rs`
 Discover existing TP-Link devices on your network.
 
 ```rust
+use tplink::DeviceKind;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    for (ip, device) in tplink::discover()? {
+    let devices = tplink::discover()?;
+
+    for (ip, device) in devices {
         match device {
-            tplink::DeviceKind::Plug(mut plug) => {
-                println!("[{}] => {}", ip, plug.alias()?);
-                
-                plug.turn_on()?;
-                assert_eq!(plug.is_on()?, true);
-            },
-            tplink::DeviceKind::Bulb(mut bulb) => {
-                println!("[{}] => {}", ip, bulb.alias()?);
-
-                bulb.turn_on()?;
-                assert_eq!(bulb.is_on()?, true);
-
-                if bulb.is_dimmable()? {
-                    bulb.set_brightness(0)?;
+            DeviceKind::Plug(mut plug) => {
+                if plug.is_on()? {
+                    plug.turn_off()?;
+                    assert_eq!(plug.is_on()?, false);
                 }
-            },
-            _ => println!("unrecognised device found with local address: {}", ip),
+            }
+            DeviceKind::Bulb(mut bulb) => {
+                if bulb.is_on()? && bulb.is_dimmable()? {
+                    bulb.set_brightness(50)?;
+                    assert_eq!(bulb.brightness()?, 50);
+                }
+            }
+            _ => eprintln!("unrecognised device found on the network: {}", ip),
         }
-    }   
-
-    Ok(())
-}
-```
-
-### Bulb
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut bulb = tplink::Bulb::new([192, 168, 1, 100]);
-    
-    bulb.turn_on()?;
-    assert_eq!(bulb.is_on()?, true);
-
-    if let Err(e) = bulb.set_brightness(60) {
-        println!("{}", e);
     }
 
-    bulb.turn_off()?;
-    assert_eq!(bulb.is_on()?, false);
-
     Ok(())
 }
-```
 
-### Plug
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut plug = tplink::Plug::new([192, 168, 1, 100]);
-    println!("alias: {}", plug.alias()?);
-    println!("location: {}", plug.location()?);
-
-    plug.turn_on()?;
-    assert_eq!(plug.is_on()?, true);
-
-    plug.turn_on_led()?;
-    assert_eq!(plug.is_led_on()?, true);
-
-    Ok(())
-}
 ```
 
 More examples can be found [here](examples).

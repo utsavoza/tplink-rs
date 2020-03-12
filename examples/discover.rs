@@ -1,29 +1,34 @@
 //! `cargo run --example discover`
 
+use tplink::DeviceKind;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    for (ip, device) in tplink::discover()? {
+    let devices = tplink::discover()?;
+
+    for (ip, device) in devices {
         match device {
-            tplink::DeviceKind::Plug(mut plug) => {
+            DeviceKind::Plug(mut plug) => {
                 println!("[{}] => {}", ip, plug.alias()?);
 
-                plug.turn_on()?;
-                assert_eq!(plug.is_on()?, true);
-
-                plug.turn_off()?;
-                assert_eq!(plug.is_on()?, false);
+                if plug.is_on()? {
+                    plug.turn_off()?;
+                    assert_eq!(plug.is_on()?, false);
+                }
             }
-            tplink::DeviceKind::Bulb(mut bulb) => {
+            DeviceKind::Bulb(mut bulb) => {
                 println!("[{}] => {}", ip, bulb.alias()?);
 
                 bulb.turn_on()?;
                 assert_eq!(bulb.is_on()?, true);
 
-                if bulb.is_dimmable()? {
-                    bulb.set_brightness(0)?;
+                if bulb.is_on()? && bulb.is_dimmable()? {
+                    bulb.set_brightness(100)?;
+                    assert_eq!(bulb.brightness()?, 100);
                 }
             }
-            _ => println!("unknown device"),
+            _ => eprintln!("unrecognised device found on the network: {}", ip),
         }
     }
+
     Ok(())
 }

@@ -154,6 +154,17 @@ impl LB110 {
             )))
         }
     }
+
+    pub(super) fn brightness(&self) -> Result<u64> {
+        let is_dimmable = self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())?;
+        if is_dimmable {
+            let mut cache = self.cache.borrow_mut();
+            let light_state = self.lighting.get_light_state(&self.proto, &mut cache)?;
+            Ok(light_state.hsv().value())
+        } else {
+            Err(error::unsupported_operation("brightness"))
+        }
+    }
 }
 
 impl Device for LB110 {

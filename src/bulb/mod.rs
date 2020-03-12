@@ -414,7 +414,7 @@ impl Bulb<LB110> {
         self.device.set_saturation(saturation)
     }
 
-    /// Sets the % brightness of the bulb, if bulb supports brightness changes.
+    /// Sets the % brightness of the bulb, if the bulb supports brightness changes.
     /// Brightness determines the intensity of the color and is expressed
     /// as a number from 0 to 100 percent.
     ///
@@ -429,5 +429,21 @@ impl Bulb<LB110> {
     /// ```
     pub fn set_brightness(&mut self, brightness: u64) -> Result<()> {
         self.device.set_brightness(brightness)
+    }
+
+    /// Returns the current % brightness of the bulb, if the bulb supports
+    /// brightness changes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let brightness = bulb.brightness()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn brightness(&self) -> Result<u64> {
+        self.device.brightness()
     }
 }
