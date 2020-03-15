@@ -8,15 +8,14 @@ use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
-#[derive(Debug)]
-pub(crate) struct Request {
-    pub(crate) target: String,
-    pub(crate) command: String,
-    pub(crate) arg: Option<Value>,
+pub struct Request {
+    pub target: String,
+    pub command: String,
+    pub arg: Option<Value>,
 }
 
 impl Request {
-    pub(crate) fn new(target: &str, command: &str, arg: Option<Value>) -> Request {
+    pub fn new(target: &str, command: &str, arg: Option<Value>) -> Request {
         Request {
             target: target.into(),
             command: command.into(),
@@ -40,18 +39,18 @@ impl Hash for Request {
     }
 }
 
-pub(crate) struct Builder {
+pub struct Builder {
     host: IpAddr,
     port: u16,
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
     broadcast: bool,
-    offline_tolerance: u32,
+    tolerance: u32,
 }
 
 impl Builder {
-    pub(crate) fn new<A>(host: A) -> Builder
+    pub fn new<A>(host: A) -> Builder
     where
         A: Into<IpAddr>,
     {
@@ -62,11 +61,11 @@ impl Builder {
             read_timeout: None,
             write_timeout: None,
             broadcast: false,
-            offline_tolerance: 1,
+            tolerance: 1,
         }
     }
 
-    pub(crate) fn default<A>(host: A) -> Proto
+    pub fn default<A>(host: A) -> Proto
     where
         A: Into<IpAddr>,
     {
@@ -79,70 +78,70 @@ impl Builder {
             .build()
     }
 
-    pub(crate) fn port(&mut self, port: u16) -> &mut Builder {
+    pub fn port(&mut self, port: u16) -> &mut Builder {
         self.port = port;
         self
     }
 
-    pub(crate) fn buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
+    pub fn buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
         self.buffer_size = buffer_size;
         self
     }
 
-    pub(crate) fn read_timeout(&mut self, duration: Duration) -> &mut Builder {
+    pub fn read_timeout(&mut self, duration: Duration) -> &mut Builder {
         self.read_timeout = Some(duration);
         self
     }
 
-    pub(crate) fn write_timeout(&mut self, duration: Duration) -> &mut Builder {
+    pub fn write_timeout(&mut self, duration: Duration) -> &mut Builder {
         self.write_timeout = Some(duration);
         self
     }
 
-    pub(crate) fn broadcast(&mut self, broadcast: bool) -> &mut Builder {
+    pub fn broadcast(&mut self, broadcast: bool) -> &mut Builder {
         self.broadcast = broadcast;
         self
     }
 
-    pub(crate) fn offline_tolerance(&mut self, offline_tolerance: u32) -> &mut Builder {
-        self.offline_tolerance = offline_tolerance;
+    pub fn tolerance(&mut self, offline_tolerance: u32) -> &mut Builder {
+        self.tolerance = offline_tolerance;
         self
     }
 
-    pub(crate) fn build(&mut self) -> Proto {
+    pub fn build(&mut self) -> Proto {
         Proto {
             addr: SocketAddr::new(self.host, self.port),
             buffer_size: self.buffer_size,
             read_timeout: self.read_timeout,
             write_timeout: self.write_timeout,
             broadcast: self.broadcast,
-            offline_tolerance: self.offline_tolerance,
+            tolerance: self.tolerance,
         }
     }
 }
 
-pub(crate) struct Proto {
+pub struct Proto {
     addr: SocketAddr,
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
     broadcast: bool,
-    offline_tolerance: u32,
+    tolerance: u32,
 }
 
 impl Proto {
-    pub(crate) fn host(&self) -> IpAddr {
+    pub fn host(&self) -> IpAddr {
         self.addr.ip()
     }
 
-    pub(crate) fn discover(&self, req: &[u8]) -> Result<HashMap<IpAddr, Vec<u8>>> {
+    pub fn discover(&self, req: &[u8]) -> Result<HashMap<IpAddr, Vec<u8>>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
 
         socket.set_broadcast(self.broadcast)?;
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
 
-        for _ in 0..self.offline_tolerance {
+        for _ in 0..self.tolerance {
             socket.send_to(&crypto::encrypt(req), &self.addr)?;
         }
 
@@ -166,7 +165,7 @@ impl Proto {
         }
     }
 
-    pub(crate) fn send_request(&self, req: &Request) -> Result<Value> {
+    pub fn send_request(&self, req: &Request) -> Result<Value> {
         let Request {
             target,
             command,
@@ -189,7 +188,7 @@ impl Proto {
         socket.set_read_timeout(self.read_timeout)?;
         socket.set_write_timeout(self.write_timeout)?;
 
-        for _ in 0..self.offline_tolerance {
+        for _ in 0..self.tolerance {
             socket.send_to(&crypto::encrypt(req), self.addr)?;
         }
 

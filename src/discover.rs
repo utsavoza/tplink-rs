@@ -54,7 +54,7 @@ pub fn discover() -> Result<HashMap<IpAddr, DeviceKind>> {
         .broadcast(true)
         .read_timeout(Duration::from_secs(3))
         .write_timeout(Duration::from_secs(3))
-        .offline_tolerance(3)
+        .tolerance(3)
         .build();
     let responses = proto.discover(&request)?;
 

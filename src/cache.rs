@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
@@ -9,7 +10,7 @@ enum Status {
     Expired,
 }
 
-pub(crate) struct Cache<K, V> {
+pub struct Cache<K, V> {
     store: HashMap<K, (Instant, V)>,
     ttl: Duration,
     hits: u32,
@@ -17,7 +18,7 @@ pub(crate) struct Cache<K, V> {
 }
 
 impl<K: Hash + Eq, V> Cache<K, V> {
-    pub(crate) fn with_ttl(duration: Duration) -> Cache<K, V> {
+    pub fn with_ttl(duration: Duration) -> Cache<K, V> {
         Cache {
             store: HashMap::new(),
             ttl: duration,
@@ -26,7 +27,7 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         }
     }
 
-    pub(crate) fn with_ttl_and_capacity(duration: Duration, capacity: usize) -> Cache<K, V> {
+    pub fn with_ttl_and_capacity(duration: Duration, capacity: usize) -> Cache<K, V> {
         Cache {
             store: HashMap::with_capacity(capacity),
             ttl: duration,
@@ -35,7 +36,7 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         }
     }
 
-    pub(crate) fn get<Q: ?Sized>(&mut self, key: &Q) -> Option<&V>
+    pub fn get<Q: ?Sized>(&mut self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -69,13 +70,13 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         }
     }
 
-    pub(crate) fn insert(&mut self, key: K, value: V) -> Option<V> {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.store
             .insert(key, (Instant::now(), value))
             .map(|(_, value)| value)
     }
 
-    pub(crate) fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
         Q: Hash + Eq,
@@ -83,30 +84,45 @@ impl<K: Hash + Eq, V> Cache<K, V> {
         self.store.remove(key).map(|(_, value)| value)
     }
 
-    pub(crate) fn retain<F>(&mut self, mut f: F)
+    pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(&K, &mut V) -> bool,
     {
         self.store.retain(|k, v| f(k, &mut v.1))
     }
 
-    pub(crate) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.store.clear();
     }
 
-    pub(crate) fn hits(&self) -> Option<u32> {
+    pub fn hits(&self) -> Option<u32> {
         Some(self.hits)
     }
 
-    pub(crate) fn misses(&self) -> Option<u32> {
+    pub fn misses(&self) -> Option<u32> {
         Some(self.misses)
     }
 
-    pub(crate) fn ttl(&self) -> Option<Duration> {
+    pub fn ttl(&self) -> Option<Duration> {
         Some(self.ttl)
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.store.len()
+    }
+}
+
+impl<K, V> Debug for Cache<K, V>
+where
+    K: Debug + Hash + Eq,
+    V: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Cache")
+            .field("store", &self.store)
+            .field("ttl", &self.ttl)
+            .field("hits", &self.hits)
+            .field("misses", &self.misses)
+            .finish()
     }
 }

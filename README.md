@@ -27,16 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (ip, device) in devices {
         match device {
             DeviceKind::Plug(mut plug) => {
-                if plug.is_on()? {
-                    plug.turn_off()?;
-                    assert_eq!(plug.is_on()?, false);
-                }
+                plug.turn_off()?;
+                assert_eq!(plug.is_on()?, false);
             }
             DeviceKind::Bulb(mut bulb) => {
-                if bulb.is_on()? && bulb.is_dimmable()? {
-                    bulb.set_brightness(50)?;
-                    assert_eq!(bulb.brightness()?, 50);
-                }
+                bulb.set_brightness(50)?;
+                assert_eq!(bulb.brightness()?, 50);
             }
             _ => eprintln!("unrecognised device found on the network: {}", ip),
         }
@@ -49,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 More examples can be found [here](examples).
 
-## Currently Supported Devices
+## Supported Devices
 
 | Device  | Model         |
 |---------|---------------|
