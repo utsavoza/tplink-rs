@@ -291,11 +291,9 @@ impl Plug<HS100> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tplink::plug::Location;
-    ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let plug = tplink::Plug::new([192, 168, 1, 100]);
-    /// let Location { latitude, longitude } = plug.location()?;
+    /// let location = plug.location()?;
     /// # Ok(())
     /// # }
     /// ```
