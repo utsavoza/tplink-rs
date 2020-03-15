@@ -4,7 +4,6 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::cell::RefMut;
 
 pub(super) struct Lighting {
     ns: String,
@@ -18,16 +17,20 @@ impl Lighting {
     pub(super) fn get_light_state(
         &self,
         proto: &Proto,
-        cache: &mut RefMut<Cache<Request, Value>>,
+        cache: Option<&mut Cache<Request, Value>>,
     ) -> Result<LightState> {
         let request = Request::new(&self.ns, "get_light_state", None);
-        let response = match cache.get(&request) {
-            Some(value) => value.to_owned(),
-            None => {
-                let value = proto.send_request(&request)?;
-                cache.insert(request, value.to_owned());
-                value
+        let response = if let Some(cache) = cache {
+            match cache.get(&request) {
+                Some(value) => value.to_owned(),
+                None => {
+                    let value = proto.send_request(&request)?;
+                    cache.insert(request, value.to_owned());
+                    value
+                }
             }
+        } else {
+            proto.send_request(&request)?
         };
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
@@ -41,10 +44,12 @@ impl Lighting {
     pub(super) fn set_light_state(
         &self,
         proto: &Proto,
+        cache: Option<&mut Cache<Request, Value>>,
         arg: Option<Value>,
-        cache: &mut RefMut<Cache<Request, Value>>,
     ) -> Result<LightState> {
-        cache.retain(|k, _| k.target != self.ns);
+        if let Some(c) = cache {
+            c.retain(|k, _| k.target != self.ns)
+        }
         proto
             .send_request(&Request::new(&self.ns, "transition_light_state", arg))
             .map(|response| {
@@ -84,29 +89,33 @@ impl LightState {
 /// The HSV (Hue, Saturation, Value) state of the bulb.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HSV {
-    hue: u64,
-    saturation: u64,
-    brightness: u64,
-    color_temp: u64,
+    hue: u32,
+    saturation: u32,
+    brightness: u32,
+    color_temp: u32,
     mode: Option<String>,
 }
 
 impl HSV {
     /// Returns the `hue` (color portion) of the HSV model, expressed
     /// as a number from 0 to 360 degrees.
-    pub fn hue(&self) -> u64 {
+    pub fn hue(&self) -> u32 {
         self.hue
     }
 
     /// Returns the `saturation` (amount of gray in particular color)
     /// of the HSV model, expressed as a number from 0 to 100 percent.
-    pub fn saturation(&self) -> u64 {
+    pub fn saturation(&self) -> u32 {
         self.saturation
     }
 
     /// Returns the `value` or `brightness` (intensity of the color)
     /// of the HSV model, expressed as a number from 0 to 100 percent.
-    pub fn value(&self) -> u64 {
+    pub fn value(&self) -> u32 {
         self.brightness
+    }
+
+    pub fn color_temp(&self) -> u32 {
+        self.color_temp
     }
 }

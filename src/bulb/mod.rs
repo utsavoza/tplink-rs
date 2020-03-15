@@ -1,7 +1,7 @@
 mod lb110;
 mod lighting;
 
-pub use crate::bulb::lb110::LB110;
+pub use self::lb110::LB110;
 
 use crate::bulb::lighting::HSV;
 use crate::command::time::{DeviceTime, DeviceTimeZone};
@@ -134,7 +134,7 @@ impl<T: Time> Bulb<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let device_time = bulb.time()?;
     /// println!("{}", device_time); // e.g. `2020-04-08 22:29:07`
     /// # Ok(())
@@ -142,7 +142,7 @@ impl<T: Time> Bulb<T> {
     /// ```
     ///
     /// [`timezone`]: #method.timezone
-    pub fn time(&self) -> Result<DeviceTime> {
+    pub fn time(&mut self) -> Result<DeviceTime> {
         self.device.time()
     }
 
@@ -152,12 +152,12 @@ impl<T: Time> Bulb<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// bulb.timezone()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn timezone(&self) -> Result<DeviceTimeZone> {
+    pub fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.device.timezone()
     }
 }
@@ -169,12 +169,12 @@ impl<T: SysInfo> Bulb<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let sysinfo = bulb.sysinfo()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn sysinfo(&self) -> Result<T::Info> {
+    pub fn sysinfo(&mut self) -> Result<T::Info> {
         self.device.sysinfo()
     }
 }
@@ -202,12 +202,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let sw_ver = bulb.sw_ver()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn sw_ver(&self) -> Result<String> {
+    pub fn sw_ver(&mut self) -> Result<String> {
         self.device.sw_ver()
     }
 
@@ -217,12 +217,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let hw_ver = bulb.hw_ver()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn hw_ver(&self) -> Result<String> {
+    pub fn hw_ver(&mut self) -> Result<String> {
         self.device.hw_ver()
     }
 
@@ -232,12 +232,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let model = bulb.model()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn model(&self) -> Result<String> {
+    pub fn model(&mut self) -> Result<String> {
         self.device.model()
     }
 
@@ -247,12 +247,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let alias = bulb.alias()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn alias(&self) -> Result<String> {
+    pub fn alias(&mut self) -> Result<String> {
         self.device.alias()
     }
 
@@ -262,12 +262,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let mac_address = bulb.mac_address()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn mac_address(&self) -> Result<String> {
+    pub fn mac_address(&mut self) -> Result<String> {
         self.device.mac_address()
     }
 
@@ -277,12 +277,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let is_dimmable = bulb.is_dimmable()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_dimmable(&self) -> Result<bool> {
+    pub fn is_dimmable(&mut self) -> Result<bool> {
         self.device.is_dimmable()
     }
 
@@ -292,12 +292,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let is_color = bulb.is_color()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_color(&self) -> Result<bool> {
+    pub fn is_color(&mut self) -> Result<bool> {
         self.device.is_color()
     }
 
@@ -307,12 +307,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let is_variable_color_temp = bulb.is_variable_color_temp()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_variable_color_temp(&self) -> Result<bool> {
+    pub fn is_variable_color_temp(&mut self) -> Result<bool> {
         self.device.is_variable_color_temp()
     }
 
@@ -322,12 +322,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let rssi = bulb.rssi()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn rssi(&self) -> Result<i64> {
+    pub fn rssi(&mut self) -> Result<i64> {
         self.device.rssi()
     }
 
@@ -337,12 +337,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let is_on = bulb.is_on()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_on(&self) -> Result<bool> {
+    pub fn is_on(&mut self) -> Result<bool> {
         self.device.is_on()
     }
 
@@ -352,7 +352,7 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let hsv = bulb.hsv()?;
     ///
     /// let hue = hsv.hue();                // degrees (0-360)
@@ -361,7 +361,7 @@ impl Bulb<LB110> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn hsv(&self) -> Result<HSV> {
+    pub fn hsv(&mut self) -> Result<HSV> {
         self.device.hsv()
     }
 
@@ -371,12 +371,12 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
     /// let has_emeter = bulb.has_emeter()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn has_emeter(&self) -> Result<bool> {
+    pub fn has_emeter(&mut self) -> Result<bool> {
         Ok(true)
     }
 
@@ -393,8 +393,24 @@ impl Bulb<LB110> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_hue(&mut self, hue: u64) -> Result<()> {
+    pub fn set_hue(&mut self, hue: u32) -> Result<()> {
         self.device.set_hue(hue)
+    }
+
+    /// Returns the hue value (expressed as a number from 0 to 360 degrees)
+    /// of the bulb, if the bulb supports color changes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// println!("hue: {}", bulb.hue()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn hue(&mut self) -> Result<u32> {
+        self.device.hue()
     }
 
     /// Sets the % saturation of the bulb, if the bulb supports color changes.
@@ -410,8 +426,24 @@ impl Bulb<LB110> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_saturation(&mut self, saturation: u64) -> Result<()> {
+    pub fn set_saturation(&mut self, saturation: u32) -> Result<()> {
         self.device.set_saturation(saturation)
+    }
+
+    /// Returns the current % saturation of the bulb, if the bulb supports
+    /// color changes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// println!("% saturation: {}", bulb.saturation()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn saturation(&mut self) -> Result<u32> {
+        self.device.saturation()
     }
 
     /// Sets the % brightness of the bulb, if the bulb supports brightness changes.
@@ -427,7 +459,7 @@ impl Bulb<LB110> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn set_brightness(&mut self, brightness: u64) -> Result<()> {
+    pub fn set_brightness(&mut self, brightness: u32) -> Result<()> {
         self.device.set_brightness(brightness)
     }
 
@@ -438,12 +470,43 @@ impl Bulb<LB110> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let bulb = tplink::Bulb::new([192, 168, 1, 101]);
-    /// let brightness = bulb.brightness()?;
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// println!("% brightness: {}", bulb.brightness()?);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn brightness(&self) -> Result<u64> {
+    pub fn brightness(&mut self) -> Result<u32> {
         self.device.brightness()
+    }
+
+    /// Sets the color temperature of the bulb, if the bulb supports color
+    /// changes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// bulb.set_color_temp(2400)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_color_temp(&mut self, color_temp: u32) -> Result<()> {
+        self.device.set_color_temp(color_temp)
+    }
+
+    /// Returns the current color temperature of the bulb.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// println!("color temperature: {}", bulb.color_temp()?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn color_temp(&mut self) -> Result<u32> {
+        self.device.color_temp()
     }
 }

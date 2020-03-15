@@ -8,7 +8,6 @@ use crate::proto::{self, Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
@@ -19,7 +18,7 @@ pub struct HS100 {
     system: System,
     time_setting: TimeSetting,
     sysinfo: SystemInfo<HS100Info>,
-    cache: RefCell<Cache<Request, Value>>,
+    cache: Option<Cache<Request, Value>>,
 }
 
 impl HS100 {
@@ -32,59 +31,63 @@ impl HS100 {
             system: System::new("system"),
             time_setting: TimeSetting::new("time"),
             sysinfo: SystemInfo::new(),
-            cache: RefCell::new(Cache::with_ttl(Duration::from_secs(3))),
+            cache: Some(Cache::with_ttl(Duration::from_secs(3))),
         }
     }
 
-    pub(super) fn sw_ver(&self) -> Result<String> {
+    pub(super) fn sw_ver(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.sw_ver)
     }
 
-    pub(super) fn hw_ver(&self) -> Result<String> {
+    pub(super) fn hw_ver(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.hw_ver)
     }
 
-    pub(super) fn model(&self) -> Result<String> {
+    pub(super) fn model(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.model)
     }
 
-    pub(super) fn alias(&self) -> Result<String> {
+    pub(super) fn alias(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.alias)
     }
 
-    pub(super) fn mac_address(&self) -> Result<String> {
+    pub(super) fn mac_address(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.mac)
     }
 
-    pub(super) fn rssi(&self) -> Result<i64> {
+    pub(super) fn rssi(&mut self) -> Result<i64> {
         self.sysinfo().map(|sysinfo| sysinfo.rssi)
     }
 
-    pub(super) fn location(&self) -> Result<Location> {
+    pub(super) fn location(&mut self) -> Result<Location> {
         self.sysinfo().map(|sysinfo| sysinfo.location)
     }
 
-    pub(super) fn is_on(&self) -> Result<bool> {
+    pub(super) fn is_on(&mut self) -> Result<bool> {
         self.sysinfo().map(|sysinfo| sysinfo.is_on())
     }
 
-    pub(super) fn is_led_on(&self) -> Result<bool> {
+    pub(super) fn is_led_on(&mut self) -> Result<bool> {
         self.sysinfo().map(|sysinfo| sysinfo.is_led_on())
     }
 
     pub(super) fn turn_on_led(&mut self) -> Result<()> {
-        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        if let Some(c) = self.cache.as_mut() {
+            c.retain(|k, _| k.target != "system");
+        }
         self.proto
             .send_request(&Request::new(
                 "system",
                 "set_led_off",
                 Some(json!({ "off": false })),
             ))
-            .map(|response| log::trace!("{:?}", response))
+            .map(|_| {})
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
-        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        if let Some(c) = self.cache.as_mut() {
+            c.retain(|k, _| k.target != "system");
+        }
         self.proto
             .send_request(&Request::new(
                 "system",
@@ -97,7 +100,9 @@ impl HS100 {
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
-        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        if let Some(c) = self.cache.as_mut() {
+            c.retain(|k, _| k.target != "system");
+        }
         self.proto
             .send_request(&Request::new(
                 "system",
@@ -108,7 +113,9 @@ impl Device for HS100 {
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.cache.borrow_mut().retain(|k, _| k.target != "system");
+        if let Some(c) = self.cache.as_mut() {
+            c.retain(|k, _| k.target != "system");
+        }
         self.proto
             .send_request(&Request::new(
                 "system",
@@ -121,26 +128,20 @@ impl Device for HS100 {
 
 impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
-        self.system
-            .reboot(&self.proto, delay, &mut cache)
-            .map(|response| log::trace!("{:?}", response))
+        self.system.reboot(&self.proto, delay).map(|_| {})
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
-        self.system
-            .factory_reset(&self.proto, delay, &mut cache)
-            .map(|response| log::trace!("{:?}", response))
+        self.system.factory_reset(&self.proto, delay).map(|_| {})
     }
 }
 
 impl Time for HS100 {
-    fn time(&self) -> Result<DeviceTime> {
+    fn time(&mut self) -> Result<DeviceTime> {
         self.time_setting.get_time(&self.proto)
     }
 
-    fn timezone(&self) -> Result<DeviceTimeZone> {
+    fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.time_setting.get_timezone(&self.proto)
     }
 }
@@ -148,9 +149,8 @@ impl Time for HS100 {
 impl SysInfo for HS100 {
     type Info = HS100Info;
 
-    fn sysinfo(&self) -> Result<Self::Info> {
-        let mut cache = self.cache.borrow_mut();
-        self.sysinfo.get_sysinfo(&self.proto, &mut cache)
+    fn sysinfo(&mut self) -> Result<Self::Info> {
+        self.sysinfo.get_sysinfo(&self.proto, self.cache.as_mut())
     }
 }
 

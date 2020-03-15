@@ -1,7 +1,7 @@
 mod hs100;
 
-pub use crate::plug::hs100::Location;
-pub use crate::plug::hs100::HS100;
+pub use self::hs100::Location;
+pub use self::hs100::HS100;
 
 use crate::command::time::{DeviceTime, DeviceTimeZone};
 use crate::command::{Device, Sys, SysInfo, Time};
@@ -135,14 +135,14 @@ impl<T: Time> Plug<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let time = plug.time()?; // e.g. `2020-04-09 22:32:01`
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// [`timezone`]: #method.timezone
-    pub fn time(&self) -> Result<DeviceTime> {
+    pub fn time(&mut self) -> Result<DeviceTime> {
         self.device.time()
     }
 
@@ -152,12 +152,12 @@ impl<T: Time> Plug<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let timezone = plug.timezone()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn timezone(&self) -> Result<DeviceTimeZone> {
+    pub fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.device.timezone()
     }
 }
@@ -169,12 +169,12 @@ impl<T: SysInfo> Plug<T> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let sysinfo = plug.sysinfo()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn sysinfo(&self) -> Result<T::Info> {
+    pub fn sysinfo(&mut self) -> Result<T::Info> {
         self.device.sysinfo()
     }
 }
@@ -202,12 +202,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let sw_ver = plug.sw_ver()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn sw_ver(&self) -> Result<String> {
+    pub fn sw_ver(&mut self) -> Result<String> {
         self.device.sw_ver()
     }
 
@@ -217,12 +217,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let hw_ver = plug.hw_ver()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn hw_ver(&self) -> Result<String> {
+    pub fn hw_ver(&mut self) -> Result<String> {
         self.device.hw_ver()
     }
 
@@ -232,12 +232,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let model = plug.model()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn model(&self) -> Result<String> {
+    pub fn model(&mut self) -> Result<String> {
         self.device.model()
     }
 
@@ -247,12 +247,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let alias = plug.alias()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn alias(&self) -> Result<String> {
+    pub fn alias(&mut self) -> Result<String> {
         self.device.alias()
     }
 
@@ -262,12 +262,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let mac_address = plug.mac_address()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn mac_address(&self) -> Result<String> {
+    pub fn mac_address(&mut self) -> Result<String> {
         self.device.mac_address()
     }
 
@@ -277,12 +277,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let rssi = plug.rssi()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn rssi(&self) -> Result<i64> {
+    pub fn rssi(&mut self) -> Result<i64> {
         self.device.rssi()
     }
 
@@ -292,12 +292,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let location = plug.location()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn location(&self) -> Result<Location> {
+    pub fn location(&mut self) -> Result<Location> {
         self.device.location()
     }
 
@@ -307,12 +307,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let is_on = plug.is_on()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_on(&self) -> Result<bool> {
+    pub fn is_on(&mut self) -> Result<bool> {
         self.device.is_on()
     }
 
@@ -322,12 +322,12 @@ impl Plug<HS100> {
     ///
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let plug = tplink::Plug::new([192, 168, 1, 100]);
+    /// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
     /// let is_led_on = plug.is_led_on()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn is_led_on(&self) -> Result<bool> {
+    pub fn is_led_on(&mut self) -> Result<bool> {
         self.device.is_led_on()
     }
 

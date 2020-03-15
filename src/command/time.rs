@@ -9,11 +9,11 @@ use std::fmt;
 pub trait Time {
     /// Attempts to fetch the device's time. Returns the current
     /// date and time of the device without the timezone.
-    fn time(&self) -> Result<DeviceTime>;
+    fn time(&mut self) -> Result<DeviceTime>;
 
     /// Attempts to fetch the device's timezone. Returns the current
     /// timezone of the device.
-    fn timezone(&self) -> Result<DeviceTimeZone>;
+    fn timezone(&mut self) -> Result<DeviceTimeZone>;
 }
 
 pub(crate) struct TimeSetting {
@@ -60,7 +60,7 @@ impl TimeSetting {
 ///
 /// ```no_run
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let plug = tplink::Plug::new([192, 168, 1, 100]);
+/// let mut plug = tplink::Plug::new([192, 168, 1, 100]);
 ///
 /// let device_time = plug.time()?;
 /// println!("{}", device_time);        // e.g. `2020-04-08 22:29:07`

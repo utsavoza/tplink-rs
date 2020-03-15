@@ -10,21 +10,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             DeviceKind::Plug(mut plug) => {
                 println!("[{}] => {}", ip, plug.alias()?);
 
-                if plug.is_on()? {
-                    plug.turn_off()?;
-                    assert_eq!(plug.is_on()?, false);
-                }
+                plug.turn_off()?;
+                assert_eq!(plug.is_on()?, false);
             }
             DeviceKind::Bulb(mut bulb) => {
                 println!("[{}] => {}", ip, bulb.alias()?);
 
-                bulb.turn_on()?;
-                assert_eq!(bulb.is_on()?, true);
-
-                if bulb.is_on()? && bulb.is_dimmable()? {
-                    bulb.set_brightness(100)?;
-                    assert_eq!(bulb.brightness()?, 100);
-                }
+                bulb.set_brightness(0)?;
+                assert_eq!(bulb.brightness()?, 0);
             }
             _ => eprintln!("unrecognised device found on the network: {}", ip),
         }

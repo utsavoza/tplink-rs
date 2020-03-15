@@ -8,6 +8,7 @@ mod discover;
 mod error;
 mod plug;
 mod proto;
+mod util;
 
 pub use self::bulb::Bulb;
 pub use self::discover::{discover, DeviceKind};

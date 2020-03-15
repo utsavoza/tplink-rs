@@ -1,4 +1,4 @@
-use crate::bulb::lighting::{LightState, Lighting, HSV};
+use super::lighting::{LightState, Lighting, HSV};
 use crate::cache::Cache;
 use crate::command::sys::System;
 use crate::command::sysinfo::SystemInfo;
@@ -6,10 +6,10 @@ use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
 use crate::command::{Device, Sys, SysInfo, Time};
 use crate::error::{self, Result};
 use crate::proto::{self, Proto, Request};
+use crate::util;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
@@ -21,7 +21,7 @@ pub struct LB110 {
     lighting: Lighting,
     time_setting: TimeSetting,
     sysinfo: SystemInfo<LB110Info>,
-    cache: RefCell<Cache<Request, Value>>,
+    cache: Option<Cache<Request, Value>>,
 }
 
 impl LB110 {
@@ -35,176 +35,272 @@ impl LB110 {
             lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
             time_setting: TimeSetting::new("smartlife.iot.common.timesetting"),
             sysinfo: SystemInfo::new(),
-            cache: RefCell::new(Cache::with_ttl(Duration::from_secs(3))),
+            cache: Some(Cache::with_ttl(Duration::from_secs(3))),
         }
     }
 
-    pub(super) fn sw_ver(&self) -> Result<String> {
+    pub(super) fn sw_ver(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.sw_ver)
     }
 
-    pub(super) fn hw_ver(&self) -> Result<String> {
+    pub(super) fn hw_ver(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.hw_ver)
     }
 
-    pub(super) fn model(&self) -> Result<String> {
+    pub(super) fn model(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.model)
     }
 
-    pub(super) fn alias(&self) -> Result<String> {
+    pub(super) fn alias(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.alias)
     }
 
-    pub(super) fn mac_address(&self) -> Result<String> {
+    pub(super) fn mac_address(&mut self) -> Result<String> {
         self.sysinfo().map(|sysinfo| sysinfo.mic_mac)
     }
 
-    pub(super) fn rssi(&self) -> Result<i64> {
+    pub(super) fn rssi(&mut self) -> Result<i64> {
         self.sysinfo().map(|sysinfo| sysinfo.rssi)
     }
 
-    pub(super) fn is_dimmable(&self) -> Result<bool> {
+    pub(super) fn is_dimmable(&mut self) -> Result<bool> {
         self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())
     }
 
-    pub(super) fn is_color(&self) -> Result<bool> {
+    pub(super) fn is_color(&mut self) -> Result<bool> {
         self.sysinfo().map(|sysinfo| sysinfo.is_color())
     }
 
-    pub(super) fn is_variable_color_temp(&self) -> Result<bool> {
+    pub(super) fn is_variable_color_temp(&mut self) -> Result<bool> {
         self.sysinfo()
             .map(|sysinfo| sysinfo.is_variable_color_temp())
     }
 
-    pub(super) fn hsv(&self) -> Result<HSV> {
+    pub(super) fn hsv(&mut self) -> Result<HSV> {
         self.sysinfo().and_then(|sysinfo| sysinfo.hsv())
     }
 
-    pub(super) fn is_on(&self) -> Result<bool> {
-        let mut cache = self.cache.borrow_mut();
+    pub(super) fn is_on(&mut self) -> Result<bool> {
         self.lighting
-            .get_light_state(&self.proto, &mut cache)
+            .get_light_state(&self.proto, self.cache.as_mut())
             .map(|light_state| light_state.is_on())
     }
 
-    pub(super) fn set_hue(&mut self, hue: u64) -> Result<()> {
-        let is_color = self.sysinfo().map(|sysinfo| sysinfo.is_color())?;
-        let is_valid_hue = (0..=360).contains(&hue);
-        if is_color && is_valid_hue {
-            let mut cache = self.cache.borrow_mut();
-            self.lighting
-                .set_light_state(&self.proto, Some(json!({ "hue": hue })), &mut cache)
-                .map(|response| log::trace!("{:?}", response))
-        } else if !is_valid_hue {
-            Err(error::invalid_parameter(&format!(
-                "set_hue: {} (valid range: 0-360)",
-                hue
-            )))
-        } else {
-            Err(error::unsupported_operation(&format!("set_hue: {}", hue)))
-        }
-    }
-
-    pub(super) fn set_saturation(&mut self, saturation: u64) -> Result<()> {
-        let is_color = self.sysinfo().map(|sysinfo| sysinfo.is_color())?;
-        let is_valid_saturation = (0..=100).contains(&saturation);
-        if is_color && is_valid_saturation {
-            let mut cache = self.cache.borrow_mut();
-            self.lighting
-                .set_light_state(
-                    &self.proto,
-                    Some(json!({ "saturation": saturation })),
-                    &mut cache,
-                )
-                .map(|response| log::trace!("{:?}", response))
-        } else if !is_valid_saturation {
-            Err(error::invalid_parameter(&format!(
-                "set_saturation: {}% (valid range: 0-100%)",
-                saturation
-            )))
+    pub(super) fn set_hue(&mut self, hue: u32) -> Result<()> {
+        let (is_color, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
+        if is_color {
+            if util::u32_in_range(hue, 0, 360) {
+                self.lighting
+                    .set_light_state(
+                        &self.proto,
+                        self.cache.as_mut(),
+                        Some(json!({ "hue": hue })),
+                    )
+                    .map(|_| {})
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} set_hue: {}° (valid range: 0-360°)",
+                    model, hue
+                )))
+            }
         } else {
             Err(error::unsupported_operation(&format!(
-                "set_saturation: {}%",
-                saturation
+                "{} set_hue: {}°",
+                model, hue
             )))
         }
     }
 
-    pub(super) fn set_brightness(&mut self, brightness: u64) -> Result<()> {
-        let is_dimmable = self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())?;
-        let is_valid_brightness = (0..=100).contains(&brightness);
-        if is_dimmable && is_valid_brightness {
-            let mut cache = self.cache.borrow_mut();
+    pub(super) fn hue(&mut self) -> Result<u32> {
+        let (is_color, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
+        if is_color {
             self.lighting
-                .set_light_state(
-                    &self.proto,
-                    Some(json!({ "brightness": brightness })),
-                    &mut cache,
-                )
-                .map(|response| log::trace!("{:?}", response))
-        } else if !is_valid_brightness {
-            Err(error::invalid_parameter(&format!(
-                "set_brightness: {}% (valid range: 0-100%)",
-                brightness
-            )))
+                .get_light_state(&self.proto, self.cache.as_mut())
+                .map(|light_state| light_state.hsv().hue())
+        } else {
+            Err(error::unsupported_operation(&format!("{} hue", model)))
+        }
+    }
+
+    pub(super) fn set_saturation(&mut self, saturation: u32) -> Result<()> {
+        let (is_color, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
+        if is_color {
+            if util::u32_in_range(saturation, 0, 100) {
+                self.lighting
+                    .set_light_state(
+                        &self.proto,
+                        self.cache.as_mut(),
+                        Some(json!({ "saturation": saturation })),
+                    )
+                    .map(|_| {})
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} set_saturation: {}% (valid range: 0-100%)",
+                    model, saturation
+                )))
+            }
         } else {
             Err(error::unsupported_operation(&format!(
-                "set_brightness: {}%",
-                brightness
+                "{} set_saturation: {}%",
+                model, saturation
             )))
         }
     }
 
-    pub(super) fn brightness(&self) -> Result<u64> {
-        let is_dimmable = self.sysinfo().map(|sysinfo| sysinfo.is_dimmable())?;
+    pub(super) fn saturation(&mut self) -> Result<u32> {
+        let (is_color, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
+        if is_color {
+            self.lighting
+                .get_light_state(&self.proto, self.cache.as_mut())
+                .map(|light_state| light_state.hsv().saturation())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} saturation",
+                model
+            )))
+        }
+    }
+
+    pub(super) fn set_brightness(&mut self, brightness: u32) -> Result<()> {
+        let (is_dimmable, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_dimmable(), sysinfo.model))?;
         if is_dimmable {
-            let mut cache = self.cache.borrow_mut();
-            let light_state = self.lighting.get_light_state(&self.proto, &mut cache)?;
-            Ok(light_state.hsv().value())
+            if util::u32_in_range(brightness, 0, 100) {
+                self.lighting
+                    .set_light_state(
+                        &self.proto,
+                        self.cache.as_mut(),
+                        Some(json!({ "brightness": brightness })),
+                    )
+                    .map(|_| {})
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} set_brightness: {}% (valid range: 0-100%)",
+                    model, brightness
+                )))
+            }
         } else {
-            Err(error::unsupported_operation("brightness"))
+            Err(error::unsupported_operation(&format!(
+                "{} set_brightness: {}%",
+                model, brightness
+            )))
+        }
+    }
+
+    pub(super) fn brightness(&mut self) -> Result<u32> {
+        let (is_dimmable, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_dimmable(), sysinfo.model))?;
+        if is_dimmable {
+            self.lighting
+                .get_light_state(&self.proto, self.cache.as_mut())
+                .map(|light_state| light_state.hsv().value())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} brightness",
+                model
+            )))
+        }
+    }
+
+    pub(super) fn set_color_temp(&mut self, color_temp: u32) -> Result<()> {
+        let (is_variable_color_temp, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_variable_color_temp(), sysinfo.model))?;
+        if is_variable_color_temp {
+            let range = util::valid_color_temp_range(&model);
+            if util::u32_in_range(color_temp, range.0, range.1) {
+                self.lighting
+                    .set_light_state(
+                        &self.proto,
+                        self.cache.as_mut(),
+                        Some(json!({ "color_temp": color_temp })),
+                    )
+                    .map(|_| {})
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} set_color_temp: {} (valid range: {}-{}K)",
+                    model, color_temp, range.0, range.1
+                )))
+            }
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} set_color_temp: {}K",
+                model, color_temp
+            )))
+        }
+    }
+
+    pub(super) fn color_temp(&mut self) -> Result<u32> {
+        let (is_variable_color_temp, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_variable_color_temp(), sysinfo.model))?;
+        if is_variable_color_temp {
+            self.lighting
+                .get_light_state(&self.proto, self.cache.as_mut())
+                .map(|light_state| light_state.hsv().color_temp())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} color_temp",
+                model
+            )))
         }
     }
 }
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
         self.lighting
-            .set_light_state(&self.proto, Some(json!({ "on_off": 1 })), &mut cache)
-            .map(|state| log::trace!("{:?}", state))
+            .set_light_state(
+                &self.proto,
+                self.cache.as_mut(),
+                Some(json!({ "on_off": 1 })),
+            )
+            .map(|_| {})
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
         self.lighting
-            .set_light_state(&self.proto, Some(json!({ "on_off": 0 })), &mut cache)
-            .map(|state| log::trace!("{:?}", state))
+            .set_light_state(
+                &self.proto,
+                self.cache.as_mut(),
+                Some(json!({ "on_off": 0 })),
+            )
+            .map(|_| {})
     }
 }
 
 impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
-        self.system
-            .reboot(&self.proto, delay, &mut cache)
-            .map(|response| log::trace!("{:?}", response))
+        if let Some(c) = self.cache.as_mut() {
+            c.clear();
+        }
+        self.system.reboot(&self.proto, delay).map(|_| {})
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        let mut cache = self.cache.borrow_mut();
-        self.system
-            .factory_reset(&self.proto, delay, &mut cache)
-            .map(|response| log::trace!("{:?}", response))
+        if let Some(c) = self.cache.as_mut() {
+            c.clear();
+        }
+        self.system.factory_reset(&self.proto, delay).map(|_| {})
     }
 }
 
 impl Time for LB110 {
-    fn time(&self) -> Result<DeviceTime> {
+    fn time(&mut self) -> Result<DeviceTime> {
         self.time_setting.get_time(&self.proto)
     }
 
-    fn timezone(&self) -> Result<DeviceTimeZone> {
+    fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.time_setting.get_timezone(&self.proto)
     }
 }
@@ -212,9 +308,8 @@ impl Time for LB110 {
 impl SysInfo for LB110 {
     type Info = LB110Info;
 
-    fn sysinfo(&self) -> Result<Self::Info> {
-        let mut cache = self.cache.borrow_mut();
-        self.sysinfo.get_sysinfo(&self.proto, &mut cache)
+    fn sysinfo(&mut self) -> Result<Self::Info> {
+        self.sysinfo.get_sysinfo(&self.proto, self.cache.as_mut())
     }
 }
 
