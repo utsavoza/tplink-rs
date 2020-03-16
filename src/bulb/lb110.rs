@@ -76,14 +76,49 @@ impl LB110 {
             .map(|sysinfo| sysinfo.is_variable_color_temp())
     }
 
-    pub(super) fn hsv(&mut self) -> Result<HSV> {
-        self.sysinfo().and_then(|sysinfo| sysinfo.hsv())
-    }
-
     pub(super) fn is_on(&mut self) -> Result<bool> {
         self.lighting
             .get_light_state(&self.proto, self.cache.as_mut())
             .map(|light_state| light_state.is_on())
+    }
+
+    pub(super) fn hsv(&mut self) -> Result<HSV> {
+        self.sysinfo().and_then(|sysinfo| sysinfo.hsv())
+    }
+
+    pub(super) fn set_hsv(&mut self, hue: u32, saturation: u32, value: u32) -> Result<()> {
+        let (is_color, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
+        if is_color {
+            if util::u32_in_range(hue, 0, 360)
+                && util::u32_in_range(saturation, 0, 100)
+                && util::u32_in_range(value, 0, 100)
+            {
+                self.lighting
+                    .set_light_state(
+                        &self.proto,
+                        self.cache.as_mut(),
+                        Some(json!({
+                            "hue": hue,
+                            "saturation": saturation,
+                            "value": value,
+                            "color_temp": 0,
+                        })),
+                    )
+                    .map(|_| {})
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} set_hsv: ({}°, {}%, {}%) (valid range: hue(0-360°), saturation(0-100%), value(0-100%))",
+                    model, hue, saturation, value
+                )))
+            }
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} set_hsv: ({}°, {}%, {}%)",
+                model, hue, saturation, value
+            )))
+        }
     }
 
     pub(super) fn set_hue(&mut self, hue: u32) -> Result<()> {
@@ -96,7 +131,7 @@ impl LB110 {
                     .set_light_state(
                         &self.proto,
                         self.cache.as_mut(),
-                        Some(json!({ "hue": hue })),
+                        Some(json!({ "hue": hue, "color_temp": 0 })),
                     )
                     .map(|_| {})
             } else {
@@ -136,7 +171,7 @@ impl LB110 {
                     .set_light_state(
                         &self.proto,
                         self.cache.as_mut(),
-                        Some(json!({ "saturation": saturation })),
+                        Some(json!({ "saturation": saturation, "color_temp": 0 })),
                     )
                     .map(|_| {})
             } else {

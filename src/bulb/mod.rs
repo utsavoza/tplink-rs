@@ -365,6 +365,23 @@ impl Bulb<LB110> {
         self.device.hsv()
     }
 
+    /// Sets HSV (Hue, Saturation, Value) state of the bulb.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut bulb = tplink::Bulb::new([192, 168, 1, 101]);
+    /// if let Err(e) = bulb.set_hsv(270, 55, 90) {
+    ///     eprintln!("error setting hsv: {}", e);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_hsv(&mut self, hue: u32, saturation: u32, value: u32) -> Result<()> {
+        self.device.set_hsv(hue, saturation, value)
+    }
+
     /// Returns whether the device supports `emeter` stats.
     ///
     /// # Examples
