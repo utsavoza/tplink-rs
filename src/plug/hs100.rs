@@ -3,7 +3,7 @@ use crate::command::cloud::{Cloud, CloudInfo, CloudSettings};
 use crate::command::device::Device;
 use crate::command::sys::{Sys, System};
 use crate::command::sysinfo::{SysInfo, SystemInfo};
-use crate::command::time::{DeviceTime, DeviceTimeZone, Time, TimeSetting};
+use crate::command::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
 use crate::command::wlan::{AccessPoint, Netif, Wlan};
 use crate::error::Result;
 use crate::proto::{self, Proto, Request};
@@ -18,7 +18,7 @@ use std::time::Duration;
 pub struct HS100 {
     proto: Proto,
     system: System,
-    time_setting: TimeSetting,
+    time_setting: TimeSettings,
     cloud_setting: CloudSettings,
     netif: Netif,
     sysinfo: SystemInfo<HS100Info>,
@@ -33,7 +33,7 @@ impl HS100 {
         HS100 {
             proto: proto::Builder::default(host),
             system: System::new("system"),
-            time_setting: TimeSetting::new("time"),
+            time_setting: TimeSettings::new("time"),
             cloud_setting: CloudSettings::new("cnCloud"),
             netif: Netif::new(),
             sysinfo: SystemInfo::new(),

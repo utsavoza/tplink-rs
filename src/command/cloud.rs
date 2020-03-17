@@ -32,9 +32,11 @@ impl CloudSettings {
     ) -> Result<CloudInfo> {
         let request = Request::new(&self.ns, "get_info", None);
 
-        let response = cache.map_or(proto.send_request(&request), |cache| {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))
-        })?;
+        let response = if let Some(cache) = cache {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        } else {
+            proto.send_request(&request)?
+        };
 
         log::trace!("{:?}", response);
 

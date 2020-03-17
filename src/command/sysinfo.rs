@@ -36,9 +36,11 @@ impl<T: DeserializeOwned> SystemInfo<T> {
     ) -> Result<T> {
         let request = Request::new("system", "get_sysinfo", None);
 
-        let response = cache.map_or(proto.send_request(&request), |cache| {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))
-        })?;
+        let response = if let Some(cache) = cache {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        } else {
+            proto.send_request(&request)?
+        };
 
         log::trace!("(system) {:?}", response);
 

@@ -11,7 +11,9 @@ pub(super) struct Lighting {
 
 impl Lighting {
     pub(super) fn new(ns: &str) -> Lighting {
-        Lighting { ns: ns.into() }
+        Lighting {
+            ns: String::from(ns),
+        }
     }
 
     pub(super) fn get_light_state(
@@ -21,9 +23,11 @@ impl Lighting {
     ) -> Result<LightState> {
         let request = Request::new(&self.ns, "get_light_state", None);
 
-        let response = cache.map_or(proto.send_request(&request), |cache| {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))
-        })?;
+        let response = if let Some(cache) = cache {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        } else {
+            proto.send_request(&request)?
+        };
 
         log::trace!("({}) {:?}", self.ns, response);
 

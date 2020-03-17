@@ -6,7 +6,7 @@ use crate::error::{self, Result};
 use crate::proto::{self, Proto, Request};
 use crate::sys::{Sys, System};
 use crate::sysinfo::{SysInfo, SystemInfo};
-use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSetting};
+use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
 use crate::util;
 use crate::wlan::{AccessPoint, Netif, Wlan};
 
@@ -21,7 +21,7 @@ pub struct LB110 {
     proto: Proto,
     system: System,
     lighting: Lighting,
-    time_setting: TimeSetting,
+    time_setting: TimeSettings,
     cloud_setting: CloudSettings,
     netif: Netif,
     sysinfo: SystemInfo<LB110Info>,
@@ -37,7 +37,7 @@ impl LB110 {
             proto: proto::Builder::default(host),
             system: System::new("smartlife.iot.common.system"),
             lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
-            time_setting: TimeSetting::new("smartlife.iot.common.timesetting"),
+            time_setting: TimeSettings::new("smartlife.iot.common.timesetting"),
             cloud_setting: CloudSettings::new("smartlife.iot.common.cloud"),
             netif: Netif::new(),
             sysinfo: SystemInfo::new(),

@@ -16,13 +16,13 @@ pub trait Time {
     fn timezone(&mut self) -> Result<DeviceTimeZone>;
 }
 
-pub(crate) struct TimeSetting {
+pub(crate) struct TimeSettings {
     ns: String,
 }
 
-impl TimeSetting {
+impl TimeSettings {
     pub(crate) fn new(ns: &str) -> Self {
-        TimeSetting {
+        TimeSettings {
             ns: String::from(ns),
         }
     }
