@@ -1,13 +1,14 @@
 mod hs100;
 
 pub use self::hs100::{Location, HS100};
-use crate::command::cloud::{Cloud, CloudInfo};
-use crate::command::device::Device;
-use crate::command::sys::Sys;
-use crate::command::sysinfo::SysInfo;
-use crate::command::time::{DeviceTime, DeviceTimeZone, Time};
-use crate::command::wlan::{AccessPoint, Wlan};
+use crate::cloud::{Cloud, CloudInfo};
+use crate::device::Device;
+use crate::emeter::{DayStats, Emeter, MonthStats, RealtimeStats};
 use crate::error::Result;
+use crate::sys::Sys;
+use crate::sysinfo::SysInfo;
+use crate::time::{DeviceTime, DeviceTimeZone, Time};
+use crate::wlan::{AccessPoint, Wlan};
 
 use std::net::IpAddr;
 use std::time::Duration;
@@ -193,6 +194,24 @@ impl<T: Wlan> Plug<T> {
         timeout: Option<Duration>,
     ) -> Result<Vec<AccessPoint>> {
         self.device.get_scan_info(refresh, timeout)
+    }
+}
+
+impl<T: Emeter> Plug<T> {
+    pub fn get_emeter_realtime(&mut self) -> Result<RealtimeStats> {
+        self.device.get_emeter_realtime()
+    }
+
+    pub fn get_emeter_month_stats(&mut self, year: u32) -> Result<MonthStats> {
+        self.device.get_emeter_month_stats(year)
+    }
+
+    pub fn get_emeter_day_stats(&mut self, month: u32, year: u32) -> Result<DayStats> {
+        self.device.get_emeter_day_stats(month, year)
+    }
+
+    pub fn erase_emeter_stats(&mut self) -> Result<()> {
+        self.device.erase_emeter_stats()
     }
 }
 
@@ -395,5 +414,9 @@ impl Plug<HS100> {
     /// ```
     pub fn turn_off_led(&mut self) -> Result<()> {
         self.device.turn_off_led()
+    }
+
+    pub fn has_emeter(&mut self) -> Result<bool> {
+        self.device.has_emeter()
     }
 }

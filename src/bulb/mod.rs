@@ -5,6 +5,7 @@ pub use self::lb110::LB110;
 use crate::bulb::lighting::HSV;
 use crate::cloud::{Cloud, CloudInfo};
 use crate::device::Device;
+use crate::emeter::{DayStats, Emeter, MonthStats, RealtimeStats};
 use crate::error::Result;
 use crate::sys::Sys;
 use crate::sysinfo::SysInfo;
@@ -194,6 +195,24 @@ impl<T: Wlan> Bulb<T> {
         timeout: Option<Duration>,
     ) -> Result<Vec<AccessPoint>> {
         self.device.get_scan_info(refresh, timeout)
+    }
+}
+
+impl<T: Emeter> Bulb<T> {
+    pub fn get_emeter_realtime(&mut self) -> Result<RealtimeStats> {
+        self.device.get_emeter_realtime()
+    }
+
+    pub fn get_emeter_month_stats(&mut self, year: u32) -> Result<MonthStats> {
+        self.device.get_emeter_month_stats(year)
+    }
+
+    pub fn get_emeter_day_stats(&mut self, month: u32, year: u32) -> Result<DayStats> {
+        self.device.get_emeter_day_stats(month, year)
+    }
+
+    pub fn erase_emeter_stats(&mut self) -> Result<()> {
+        self.device.erase_emeter_stats()
     }
 }
 
@@ -429,7 +448,7 @@ impl Bulb<LB110> {
     /// # }
     /// ```
     pub fn has_emeter(&mut self) -> Result<bool> {
-        Ok(true)
+        self.device.has_emeter()
     }
 
     /// Sets the hue of the bulb, if the bulb supports color changes.

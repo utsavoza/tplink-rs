@@ -1,12 +1,14 @@
 use crate::cache::Cache;
-use crate::command::cloud::{Cloud, CloudInfo, CloudSettings};
-use crate::command::device::Device;
-use crate::command::sys::{Sys, System};
-use crate::command::sysinfo::{SysInfo, SystemInfo};
-use crate::command::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
-use crate::command::wlan::{AccessPoint, Netif, Wlan};
-use crate::error::Result;
+use crate::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::device::Device;
+use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
+use crate::error::{self, Result};
 use crate::proto::{self, Proto, Request};
+use crate::sys::{Sys, System};
+use crate::sysinfo::{SysInfo, SystemInfo};
+use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
+use crate::util;
+use crate::wlan::{AccessPoint, Netif, Wlan};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -20,6 +22,7 @@ pub struct HS100 {
     system: System,
     time_setting: TimeSettings,
     cloud_setting: CloudSettings,
+    emeter: EmeterStats,
     netif: Netif,
     sysinfo: SystemInfo<HS100Info>,
     cache: Option<Cache<Request, Value>>,
@@ -35,6 +38,7 @@ impl HS100 {
             system: System::new("system"),
             time_setting: TimeSettings::new("time"),
             cloud_setting: CloudSettings::new("cnCloud"),
+            emeter: EmeterStats::new("emeter"),
             netif: Netif::new(),
             sysinfo: SystemInfo::new(),
             cache: Some(Cache::with_ttl(Duration::from_secs(3))),
@@ -67,6 +71,10 @@ impl HS100 {
 
     pub(super) fn location(&mut self) -> Result<Location> {
         self.sysinfo().map(|sysinfo| sysinfo.location)
+    }
+
+    pub(super) fn has_emeter(&mut self) -> Result<bool> {
+        self.sysinfo().map(|sysinfo| sysinfo.has_emeter())
     }
 
     pub(super) fn is_on(&mut self) -> Result<bool> {
@@ -200,6 +208,77 @@ impl Wlan for HS100 {
     }
 }
 
+impl Emeter for HS100 {
+    fn get_emeter_realtime(&mut self) -> Result<RealtimeStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter.get_realtime(&self.proto, self.cache.as_mut())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_realtime",
+                model
+            )))
+        }
+    }
+
+    fn get_emeter_month_stats(&mut self, year: u32) -> Result<MonthStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter
+                .get_month_stats(&self.proto, self.cache.as_mut(), year)
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_month_stats",
+                model
+            )))
+        }
+    }
+
+    fn get_emeter_day_stats(&mut self, month: u32, year: u32) -> Result<DayStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            if util::u32_in_range(month, 1, 12) {
+                self.emeter
+                    .get_day_stats(&self.proto, self.cache.as_mut(), month, year)
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} get_emeter_day_stats: month={} (valid range: 1-12)",
+                    model, month
+                )))
+            }
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_day_stats",
+                model
+            )))
+        }
+    }
+
+    fn erase_emeter_stats(&mut self) -> Result<()> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter.erase_stats(&self.proto, self.cache.as_mut())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} erase_emeter_stats",
+                model
+            )))
+        }
+    }
+}
+
 impl SysInfo for HS100 {
     type Info = HS100Info;
 
@@ -223,6 +302,7 @@ pub struct HS100Info {
     #[serde(flatten)]
     location: Location,
     led_off: u64,
+    feature: String,
     #[serde(flatten)]
     other: Map<String, Value>,
 }
@@ -276,6 +356,11 @@ impl HS100Info {
     /// Returns the location of the device.
     pub fn location(&self) -> &Location {
         &self.location
+    }
+
+    /// Returns whether the device supports emeter stats.
+    pub fn has_emeter(&self) -> bool {
+        self.feature.contains("ENE")
     }
 
     /// Returns whether the device is on.

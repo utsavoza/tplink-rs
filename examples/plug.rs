@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("alias: {}", plug.alias()?);
     println!("model: {}", plug.model()?);
     println!("time: {}", plug.time()?);
+    println!("has emeter: {}", plug.has_emeter()?);
 
     Ok(())
 }

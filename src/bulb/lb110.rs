@@ -2,6 +2,7 @@ use super::lighting::{LightState, Lighting, HSV};
 use crate::cache::Cache;
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
 use crate::device::Device;
+use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
 use crate::error::{self, Result};
 use crate::proto::{self, Proto, Request};
 use crate::sys::{Sys, System};
@@ -24,6 +25,7 @@ pub struct LB110 {
     time_setting: TimeSettings,
     cloud_setting: CloudSettings,
     netif: Netif,
+    emeter: EmeterStats,
     sysinfo: SystemInfo<LB110Info>,
     cache: Option<Cache<Request, Value>>,
 }
@@ -39,6 +41,7 @@ impl LB110 {
             lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
             time_setting: TimeSettings::new("smartlife.iot.common.timesetting"),
             cloud_setting: CloudSettings::new("smartlife.iot.common.cloud"),
+            emeter: EmeterStats::new("smartlife.iot.common.emeter"),
             netif: Netif::new(),
             sysinfo: SystemInfo::new(),
             cache: Some(Cache::with_ttl(Duration::from_secs(3))),
@@ -86,6 +89,10 @@ impl LB110 {
         self.lighting
             .get_light_state(&self.proto, self.cache.as_mut())
             .map(|light_state| light_state.is_on())
+    }
+
+    pub(super) fn has_emeter(&mut self) -> Result<bool> {
+        Ok(true)
     }
 
     pub(super) fn hsv(&mut self) -> Result<HSV> {
@@ -372,6 +379,77 @@ impl Wlan for LB110 {
     }
 }
 
+impl Emeter for LB110 {
+    fn get_emeter_realtime(&mut self) -> Result<RealtimeStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter.get_realtime(&self.proto, self.cache.as_mut())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_realtime",
+                model
+            )))
+        }
+    }
+
+    fn get_emeter_month_stats(&mut self, year: u32) -> Result<MonthStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter
+                .get_month_stats(&self.proto, self.cache.as_mut(), year)
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_month_stats",
+                model
+            )))
+        }
+    }
+
+    fn get_emeter_day_stats(&mut self, month: u32, year: u32) -> Result<DayStats> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            if util::u32_in_range(month, 1, 12) {
+                self.emeter
+                    .get_day_stats(&self.proto, self.cache.as_mut(), month, year)
+            } else {
+                Err(error::invalid_parameter(&format!(
+                    "{} get_emeter_day_stats: month={} (valid range: 1-12)",
+                    model, month
+                )))
+            }
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} get_emeter_day_stats",
+                model
+            )))
+        }
+    }
+
+    fn erase_emeter_stats(&mut self) -> Result<()> {
+        let (has_emeter, model) = self
+            .sysinfo()
+            .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
+
+        if has_emeter {
+            self.emeter.erase_stats(&self.proto, self.cache.as_mut())
+        } else {
+            Err(error::unsupported_operation(&format!(
+                "{} erase_emeter_stats",
+                model
+            )))
+        }
+    }
+}
+
 impl SysInfo for LB110 {
     type Info = LB110Info;
 
@@ -443,6 +521,10 @@ impl LB110Info {
     /// Returns the Wi-Fi signal strength (rssi) of the device.
     pub fn rssi(&self) -> i64 {
         self.rssi
+    }
+
+    pub fn has_emeter(&self) -> bool {
+        true
     }
 
     /// Returns the current HSV (Hue, Saturation, Value) state of the bulb.
