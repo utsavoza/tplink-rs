@@ -1,3 +1,5 @@
+use crate::error::Result;
+
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
@@ -112,14 +114,30 @@ impl<K: Hash + Eq, V> Cache<K, V> {
     }
 }
 
-impl<K, V> Debug for Cache<K, V>
+impl<K, V> Cache<K, V>
 where
-    K: Debug + Hash + Eq,
-    V: Debug,
+    K: Hash + Eq,
+    V: Clone,
 {
+    pub fn get_or_insert_with<F>(&mut self, key: K, f: F) -> Result<V>
+    where
+        F: Fn(&K) -> Result<V>,
+        V: Clone,
+    {
+        match self.get(&key) {
+            Some(value) => Ok(value.to_owned()),
+            None => {
+                let value = f(&key)?;
+                self.insert(key, value.to_owned());
+                Ok(value)
+            }
+        }
+    }
+}
+
+impl<K, V> Debug for Cache<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Cache")
-            .field("store", &self.store)
             .field("ttl", &self.ttl)
             .field("hits", &self.hits)
             .field("misses", &self.misses)

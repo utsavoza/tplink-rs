@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
@@ -24,24 +25,56 @@ pub(crate) struct System {
 
 impl System {
     pub(crate) fn new(ns: &str) -> System {
-        System { ns: ns.into() }
+        System {
+            ns: String::from(ns),
+        }
     }
 
-    pub(crate) fn reboot(&self, proto: &Proto, delay: Option<Duration>) -> Result<Value> {
+    pub(crate) fn reboot(
+        &self,
+        proto: &Proto,
+        cache: Option<&mut Cache<Request, Value>>,
+        delay: Option<Duration>,
+    ) -> Result<()> {
+        if let Some(cache) = cache {
+            log::trace!("({}) {:?}", self.ns, cache);
+            cache.clear();
+        }
+
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        proto.send_request(&Request::new(
+
+        let response = proto.send_request(&Request::new(
             &self.ns,
             "reboot",
             Some(json!({ "delay": delay_in_secs })),
-        ))
+        ))?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
+        Ok(())
     }
 
-    pub(crate) fn factory_reset(&self, proto: &Proto, delay: Option<Duration>) -> Result<Value> {
+    pub(crate) fn reset(
+        &self,
+        proto: &Proto,
+        cache: Option<&mut Cache<Request, Value>>,
+        delay: Option<Duration>,
+    ) -> Result<()> {
+        if let Some(cache) = cache {
+            log::trace!("({}) {:?}", self.ns, cache);
+            cache.clear();
+        }
+
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
-        proto.send_request(&Request::new(
+
+        let response = proto.send_request(&Request::new(
             &self.ns,
             "reset",
             Some(json!({ "delay": delay_in_secs })),
-        ))
+        ))?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
+        Ok(())
     }
 }

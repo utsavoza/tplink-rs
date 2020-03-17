@@ -35,18 +35,13 @@ impl<T: DeserializeOwned> SystemInfo<T> {
         cache: Option<&mut Cache<Request, Value>>,
     ) -> Result<T> {
         let request = Request::new("system", "get_sysinfo", None);
-        let response = if let Some(cache) = cache {
-            match cache.get(&request) {
-                Some(value) => value.to_owned(),
-                None => {
-                    let value = proto.send_request(&request)?;
-                    cache.insert(request, value.to_owned());
-                    value
-                }
-            }
-        } else {
-            proto.send_request(&request)?
-        };
+
+        let response = cache.map_or(proto.send_request(&request), |cache| {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))
+        })?;
+
+        log::trace!("(system) {:?}", response);
+
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",

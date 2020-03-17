@@ -22,11 +22,13 @@ pub(crate) struct TimeSetting {
 
 impl TimeSetting {
     pub(crate) fn new(ns: &str) -> Self {
-        TimeSetting { ns: ns.into() }
+        TimeSetting {
+            ns: String::from(ns),
+        }
     }
 
     pub(crate) fn get_time(&self, proto: &Proto) -> Result<DeviceTime> {
-        proto
+        let response = proto
             .send_request(&Request::new(&self.ns, "get_time", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
@@ -36,11 +38,15 @@ impl TimeSetting {
                         err
                     )
                 })
-            })
+            })?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
+        Ok(response)
     }
 
     pub(crate) fn get_timezone(&self, proto: &Proto) -> Result<DeviceTimeZone> {
-        proto
+        let response = proto
             .send_request(&Request::new(&self.ns, "get_timezone", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
@@ -50,7 +56,11 @@ impl TimeSetting {
                         err
                     )
                 })
-            })
+            })?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
+        Ok(response)
     }
 }
 

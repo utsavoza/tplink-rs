@@ -2,11 +2,14 @@ mod lb110;
 mod lighting;
 
 pub use self::lb110::LB110;
-
 use crate::bulb::lighting::HSV;
-use crate::command::time::{DeviceTime, DeviceTimeZone};
-use crate::command::{Device, Sys, SysInfo, Time};
+use crate::cloud::{Cloud, CloudInfo};
+use crate::device::Device;
 use crate::error::Result;
+use crate::sys::Sys;
+use crate::sysinfo::SysInfo;
+use crate::time::{DeviceTime, DeviceTimeZone, Time};
+use crate::wlan::{AccessPoint, Wlan};
 
 use std::net::IpAddr;
 use std::time::Duration;
@@ -159,6 +162,38 @@ impl<T: Time> Bulb<T> {
     /// ```
     pub fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.device.timezone()
+    }
+}
+
+impl<T: Cloud> Bulb<T> {
+    pub fn get_cloud_info(&mut self) -> Result<CloudInfo> {
+        self.device.get_cloud_info()
+    }
+
+    pub fn bind(&mut self, username: &str, password: &str) -> Result<()> {
+        self.device.bind(username, password)
+    }
+
+    pub fn unbind(&mut self) -> Result<()> {
+        self.device.unbind()
+    }
+
+    pub fn get_firmware_list(&mut self) -> Result<Vec<String>> {
+        self.device.get_firmware_list()
+    }
+
+    pub fn set_server_url(&mut self, url: &str) -> Result<()> {
+        self.device.set_server_url(url)
+    }
+}
+
+impl<T: Wlan> Bulb<T> {
+    pub fn get_scan_info(
+        &mut self,
+        refresh: bool,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<AccessPoint>> {
+        self.device.get_scan_info(refresh, timeout)
     }
 }
 

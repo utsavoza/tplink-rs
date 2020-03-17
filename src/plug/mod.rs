@@ -1,10 +1,12 @@
 mod hs100;
 
-pub use self::hs100::Location;
-pub use self::hs100::HS100;
-
-use crate::command::time::{DeviceTime, DeviceTimeZone};
-use crate::command::{Device, Sys, SysInfo, Time};
+pub use self::hs100::{Location, HS100};
+use crate::command::cloud::{Cloud, CloudInfo};
+use crate::command::device::Device;
+use crate::command::sys::Sys;
+use crate::command::sysinfo::SysInfo;
+use crate::command::time::{DeviceTime, DeviceTimeZone, Time};
+use crate::command::wlan::{AccessPoint, Wlan};
 use crate::error::Result;
 
 use std::net::IpAddr;
@@ -159,6 +161,38 @@ impl<T: Time> Plug<T> {
     /// ```
     pub fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.device.timezone()
+    }
+}
+
+impl<T: Cloud> Plug<T> {
+    pub fn get_cloud_info(&mut self) -> Result<CloudInfo> {
+        self.device.get_cloud_info()
+    }
+
+    pub fn bind(&mut self, username: &str, password: &str) -> Result<()> {
+        self.device.bind(username, password)
+    }
+
+    pub fn unbind(&mut self) -> Result<()> {
+        self.device.unbind()
+    }
+
+    pub fn get_firmware_list(&mut self) -> Result<Vec<String>> {
+        self.device.get_firmware_list()
+    }
+
+    pub fn set_server_url(&mut self, url: &str) -> Result<()> {
+        self.device.set_server_url(url)
+    }
+}
+
+impl<T: Wlan> Plug<T> {
+    pub fn get_scan_info(
+        &mut self,
+        refresh: bool,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<AccessPoint>> {
+        self.device.get_scan_info(refresh, timeout)
     }
 }
 

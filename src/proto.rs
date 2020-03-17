@@ -134,6 +134,10 @@ impl Proto {
         self.addr.ip()
     }
 
+    pub fn read_timeout(&self) -> Option<Duration> {
+        self.read_timeout
+    }
+
     pub fn discover(&self, req: &[u8]) -> Result<HashMap<IpAddr, Vec<u8>>> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
 

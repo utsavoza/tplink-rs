@@ -11,6 +11,7 @@ mod proto;
 mod util;
 
 pub use self::bulb::Bulb;
+pub use self::command::{cloud, device, sys, sysinfo, time, wlan};
 pub use self::discover::{discover, DeviceKind};
 pub use self::error::{Error, ErrorKind, Result};
 pub use self::plug::Plug;

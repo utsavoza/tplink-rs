@@ -1,8 +1,10 @@
 use crate::cache::Cache;
-use crate::command::sys::System;
-use crate::command::sysinfo::SystemInfo;
-use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
-use crate::command::{Device, Sys, SysInfo, Time};
+use crate::command::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::command::device::Device;
+use crate::command::sys::{Sys, System};
+use crate::command::sysinfo::{SysInfo, SystemInfo};
+use crate::command::time::{DeviceTime, DeviceTimeZone, Time, TimeSetting};
+use crate::command::wlan::{AccessPoint, Netif, Wlan};
 use crate::error::Result;
 use crate::proto::{self, Proto, Request};
 
@@ -17,6 +19,8 @@ pub struct HS100 {
     proto: Proto,
     system: System,
     time_setting: TimeSetting,
+    cloud_setting: CloudSettings,
+    netif: Netif,
     sysinfo: SystemInfo<HS100Info>,
     cache: Option<Cache<Request, Value>>,
 }
@@ -30,6 +34,8 @@ impl HS100 {
             proto: proto::Builder::default(host),
             system: System::new("system"),
             time_setting: TimeSetting::new("time"),
+            cloud_setting: CloudSettings::new("cnCloud"),
+            netif: Netif::new(),
             sysinfo: SystemInfo::new(),
             cache: Some(Cache::with_ttl(Duration::from_secs(3))),
         }
@@ -75,26 +81,32 @@ impl HS100 {
         if let Some(c) = self.cache.as_mut() {
             c.retain(|k, _| k.target != "system");
         }
-        self.proto
-            .send_request(&Request::new(
-                "system",
-                "set_led_off",
-                Some(json!({ "off": false })),
-            ))
-            .map(|_| {})
+
+        let response = self.proto.send_request(&Request::new(
+            "system",
+            "set_led_off",
+            Some(json!({ "off": false })),
+        ))?;
+
+        log::trace!("(system) {:?}", response);
+
+        Ok(())
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
         if let Some(c) = self.cache.as_mut() {
             c.retain(|k, _| k.target != "system");
         }
-        self.proto
-            .send_request(&Request::new(
-                "system",
-                "set_led_off",
-                Some(json!({ "off": true })),
-            ))
-            .map(|response| log::trace!("{:?}", response))
+
+        let response = self.proto.send_request(&Request::new(
+            "system",
+            "set_led_off",
+            Some(json!({ "off": true })),
+        ))?;
+
+        log::trace!("(system) {:?}", response);
+
+        Ok(())
     }
 }
 
@@ -103,36 +115,42 @@ impl Device for HS100 {
         if let Some(c) = self.cache.as_mut() {
             c.retain(|k, _| k.target != "system");
         }
-        self.proto
-            .send_request(&Request::new(
-                "system",
-                "set_relay_state",
-                Some(json!({ "state": 1 })),
-            ))
-            .map(|response| log::trace!("{:?}", response))
+
+        let response = self.proto.send_request(&Request::new(
+            "system",
+            "set_relay_state",
+            Some(json!({ "state": 1 })),
+        ))?;
+
+        log::trace!("(system) {:?}", response);
+
+        Ok(())
     }
 
     fn turn_off(&mut self) -> Result<()> {
         if let Some(c) = self.cache.as_mut() {
             c.retain(|k, _| k.target != "system");
         }
-        self.proto
-            .send_request(&Request::new(
-                "system",
-                "set_relay_state",
-                Some(json!({ "state": 0 })),
-            ))
-            .map(|response| log::trace!("{:?}", response))
+
+        let response = self.proto.send_request(&Request::new(
+            "system",
+            "set_relay_state",
+            Some(json!({ "state": 0 })),
+        ))?;
+
+        log::trace!("(system) {:?}", response);
+
+        Ok(())
     }
 }
 
 impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, delay).map(|_| {})
+        self.system.reboot(&self.proto, self.cache.as_mut(), delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.factory_reset(&self.proto, delay).map(|_| {})
+        self.system.reset(&self.proto, self.cache.as_mut(), delay)
     }
 }
 
@@ -143,6 +161,42 @@ impl Time for HS100 {
 
     fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.time_setting.get_timezone(&self.proto)
+    }
+}
+
+impl Cloud for HS100 {
+    fn get_cloud_info(&mut self) -> Result<CloudInfo> {
+        self.cloud_setting
+            .get_info(&self.proto, self.cache.as_mut())
+    }
+
+    fn bind(&mut self, username: &str, password: &str) -> Result<()> {
+        self.cloud_setting
+            .bind(&self.proto, self.cache.as_mut(), username, password)
+    }
+
+    fn unbind(&mut self) -> Result<()> {
+        self.cloud_setting.unbind(&self.proto, self.cache.as_mut())
+    }
+
+    fn get_firmware_list(&mut self) -> Result<Vec<String>> {
+        self.cloud_setting
+            .get_firmware_list(&self.proto, self.cache.as_mut())
+    }
+
+    fn set_server_url(&mut self, url: &str) -> Result<()> {
+        self.cloud_setting
+            .set_server_url(&self.proto, self.cache.as_mut(), url)
+    }
+}
+
+impl Wlan for HS100 {
+    fn get_scan_info(
+        &mut self,
+        refresh: bool,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<AccessPoint>> {
+        self.netif.get_scan_info(&self.proto, refresh, timeout)
     }
 }
 

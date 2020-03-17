@@ -20,18 +20,13 @@ impl Lighting {
         cache: Option<&mut Cache<Request, Value>>,
     ) -> Result<LightState> {
         let request = Request::new(&self.ns, "get_light_state", None);
-        let response = if let Some(cache) = cache {
-            match cache.get(&request) {
-                Some(value) => value.to_owned(),
-                None => {
-                    let value = proto.send_request(&request)?;
-                    cache.insert(request, value.to_owned());
-                    value
-                }
-            }
-        } else {
-            proto.send_request(&request)?
-        };
+
+        let response = cache.map_or(proto.send_request(&request), |cache| {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))
+        })?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
@@ -46,21 +41,26 @@ impl Lighting {
         proto: &Proto,
         cache: Option<&mut Cache<Request, Value>>,
         arg: Option<Value>,
-    ) -> Result<LightState> {
+    ) -> Result<()> {
         if let Some(c) = cache {
             c.retain(|k, _| k.target != self.ns)
         }
-        proto
+
+        let response = proto
             .send_request(&Request::new(&self.ns, "transition_light_state", arg))
             .map(|response| {
-                serde_json::from_value(response).unwrap_or_else(|err| {
+                serde_json::from_value::<LightState>(response).unwrap_or_else(|err| {
                     panic!(
                         "invalid response from host with address {}: {}",
                         proto.host(),
                         err
                     )
                 })
-            })
+            })?;
+
+        log::trace!("({}) {:?}", self.ns, response);
+
+        Ok(())
     }
 }
 

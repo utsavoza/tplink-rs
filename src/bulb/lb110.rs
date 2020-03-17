@@ -1,12 +1,14 @@
 use super::lighting::{LightState, Lighting, HSV};
 use crate::cache::Cache;
-use crate::command::sys::System;
-use crate::command::sysinfo::SystemInfo;
-use crate::command::time::{DeviceTime, DeviceTimeZone, TimeSetting};
-use crate::command::{Device, Sys, SysInfo, Time};
+use crate::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::device::Device;
 use crate::error::{self, Result};
 use crate::proto::{self, Proto, Request};
+use crate::sys::{Sys, System};
+use crate::sysinfo::{SysInfo, SystemInfo};
+use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSetting};
 use crate::util;
+use crate::wlan::{AccessPoint, Netif, Wlan};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -20,6 +22,8 @@ pub struct LB110 {
     system: System,
     lighting: Lighting,
     time_setting: TimeSetting,
+    cloud_setting: CloudSettings,
+    netif: Netif,
     sysinfo: SystemInfo<LB110Info>,
     cache: Option<Cache<Request, Value>>,
 }
@@ -34,6 +38,8 @@ impl LB110 {
             system: System::new("smartlife.iot.common.system"),
             lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
             time_setting: TimeSetting::new("smartlife.iot.common.timesetting"),
+            cloud_setting: CloudSettings::new("smartlife.iot.common.cloud"),
+            netif: Netif::new(),
             sysinfo: SystemInfo::new(),
             cache: Some(Cache::with_ttl(Duration::from_secs(3))),
         }
@@ -294,39 +300,29 @@ impl LB110 {
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
-        self.lighting
-            .set_light_state(
-                &self.proto,
-                self.cache.as_mut(),
-                Some(json!({ "on_off": 1 })),
-            )
-            .map(|_| {})
+        self.lighting.set_light_state(
+            &self.proto,
+            self.cache.as_mut(),
+            Some(json!({ "on_off": 1 })),
+        )
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.lighting
-            .set_light_state(
-                &self.proto,
-                self.cache.as_mut(),
-                Some(json!({ "on_off": 0 })),
-            )
-            .map(|_| {})
+        self.lighting.set_light_state(
+            &self.proto,
+            self.cache.as_mut(),
+            Some(json!({ "on_off": 0 })),
+        )
     }
 }
 
 impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
-            c.clear();
-        }
-        self.system.reboot(&self.proto, delay).map(|_| {})
+        self.system.reboot(&self.proto, self.cache.as_mut(), delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
-            c.clear();
-        }
-        self.system.factory_reset(&self.proto, delay).map(|_| {})
+        self.system.reset(&self.proto, self.cache.as_mut(), delay)
     }
 }
 
@@ -337,6 +333,42 @@ impl Time for LB110 {
 
     fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.time_setting.get_timezone(&self.proto)
+    }
+}
+
+impl Cloud for LB110 {
+    fn get_cloud_info(&mut self) -> Result<CloudInfo> {
+        self.cloud_setting
+            .get_info(&self.proto, self.cache.as_mut())
+    }
+
+    fn bind(&mut self, username: &str, password: &str) -> Result<()> {
+        self.cloud_setting
+            .bind(&self.proto, self.cache.as_mut(), username, password)
+    }
+
+    fn unbind(&mut self) -> Result<()> {
+        self.cloud_setting.unbind(&self.proto, self.cache.as_mut())
+    }
+
+    fn get_firmware_list(&mut self) -> Result<Vec<String>> {
+        self.cloud_setting
+            .get_firmware_list(&self.proto, self.cache.as_mut())
+    }
+
+    fn set_server_url(&mut self, url: &str) -> Result<()> {
+        self.cloud_setting
+            .set_server_url(&self.proto, self.cache.as_mut(), url)
+    }
+}
+
+impl Wlan for LB110 {
+    fn get_scan_info(
+        &mut self,
+        refresh: bool,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<AccessPoint>> {
+        self.netif.get_scan_info(&self.proto, refresh, timeout)
     }
 }
 
