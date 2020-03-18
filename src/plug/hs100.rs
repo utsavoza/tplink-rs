@@ -1,3 +1,4 @@
+use super::timer::{Rule, RuleList, Timer, TimerSettings};
 use crate::cache::Cache;
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
 use crate::device::Device;
@@ -21,6 +22,7 @@ pub struct HS100 {
     proto: Proto,
     system: System,
     time_setting: TimeSettings,
+    timer_setting: TimerSettings,
     cloud_setting: CloudSettings,
     emeter: EmeterStats,
     netif: Netif,
@@ -37,6 +39,7 @@ impl HS100 {
             proto: proto::Builder::default(host),
             system: System::new("system"),
             time_setting: TimeSettings::new("time"),
+            timer_setting: TimerSettings::new("count_down"),
             cloud_setting: CloudSettings::new("cnCloud"),
             emeter: EmeterStats::new("emeter"),
             netif: Netif::new(),
@@ -169,6 +172,40 @@ impl Time for HS100 {
 
     fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.time_setting.get_timezone(&self.proto)
+    }
+}
+
+impl Timer for HS100 {
+    fn get_timer_rules(&mut self) -> Result<RuleList> {
+        self.timer_setting
+            .get_rules(&self.proto, self.cache.as_mut())
+    }
+
+    fn add_timer_rule(&mut self, rule: Rule) -> Result<String> {
+        let is_table_empty = self.get_timer_rules().map(|list| list.is_empty())?;
+        if is_table_empty {
+            self.timer_setting
+                .add_rule(&self.proto, self.cache.as_mut(), rule)
+        } else {
+            Err(error::unsupported_operation(
+                "add_timer_rule: table is full",
+            ))
+        }
+    }
+
+    fn edit_timer_rule(&mut self, id: &str, rule: Rule) -> Result<()> {
+        self.timer_setting
+            .edit_rule(&self.proto, self.cache.as_mut(), id, rule)
+    }
+
+    fn delete_timer_rule_with_id(&mut self, id: &str) -> Result<()> {
+        self.timer_setting
+            .delete_rule_with_id(&self.proto, self.cache.as_mut(), id)
+    }
+
+    fn delete_all_timer_rules(&mut self) -> Result<()> {
+        self.timer_setting
+            .delete_all_rules(&self.proto, self.cache.as_mut())
     }
 }
 

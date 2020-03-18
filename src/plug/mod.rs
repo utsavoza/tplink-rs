@@ -1,6 +1,8 @@
 mod hs100;
+pub mod timer;
 
 pub use self::hs100::{Location, HS100};
+use self::timer::{Rule, RuleList, Timer};
 use crate::cloud::{Cloud, CloudInfo};
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, MonthStats, RealtimeStats};
@@ -162,6 +164,28 @@ impl<T: Time> Plug<T> {
     /// ```
     pub fn timezone(&mut self) -> Result<DeviceTimeZone> {
         self.device.timezone()
+    }
+}
+
+impl<T: Timer> Plug<T> {
+    pub fn get_timer_rules(&mut self) -> Result<RuleList> {
+        self.device.get_timer_rules()
+    }
+
+    pub fn add_timer_rule(&mut self, rule: Rule) -> Result<String> {
+        self.device.add_timer_rule(rule)
+    }
+
+    pub fn edit_timer_rule(&mut self, id: &str, rule: Rule) -> Result<()> {
+        self.device.edit_timer_rule(id, rule)
+    }
+
+    pub fn delete_timer_rule_with_id(&mut self, id: &str) -> Result<()> {
+        self.device.delete_timer_rule_with_id(id)
+    }
+
+    pub fn delete_all_timer_rules(&mut self) -> Result<()> {
+        self.device.delete_all_timer_rules()
     }
 }
 
