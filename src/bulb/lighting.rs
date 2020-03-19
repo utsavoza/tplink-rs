@@ -1,4 +1,4 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
@@ -19,7 +19,7 @@ impl Lighting {
     pub(super) fn get_light_state(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
     ) -> Result<LightState> {
         let request = Request::new(&self.ns, "get_light_state", None);
 
@@ -43,7 +43,7 @@ impl Lighting {
     pub(super) fn set_light_state(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         arg: Option<Value>,
     ) -> Result<()> {
         if let Some(c) = cache {

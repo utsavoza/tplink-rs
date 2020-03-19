@@ -1,10 +1,10 @@
 use super::lighting::{LightState, Lighting, HSV};
-use crate::cache::Cache;
+use crate::cache::{Cache, ResponseCache};
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
 use crate::error::{self, Result};
-use crate::proto::{self, Proto, Request};
+use crate::proto::{self, Proto};
 use crate::sys::{Sys, System};
 use crate::sysinfo::{SysInfo, SystemInfo};
 use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
@@ -27,7 +27,7 @@ pub struct LB110 {
     netif: Netif,
     emeter: EmeterStats,
     sysinfo: SystemInfo<LB110Info>,
-    cache: Option<Cache<Request, Value>>,
+    cache: ResponseCache,
 }
 
 impl LB110 {
@@ -87,7 +87,7 @@ impl LB110 {
 
     pub(super) fn is_on(&mut self) -> Result<bool> {
         self.lighting
-            .get_light_state(&self.proto, self.cache.as_mut())
+            .get_light_state(&self.proto, &mut self.cache)
             .map(|light_state| light_state.is_on())
     }
 
@@ -111,7 +111,7 @@ impl LB110 {
                 self.lighting
                     .set_light_state(
                         &self.proto,
-                        self.cache.as_mut(),
+                        &mut self.cache,
                         Some(json!({
                             "hue": hue,
                             "saturation": saturation,
@@ -143,7 +143,7 @@ impl LB110 {
                 self.lighting
                     .set_light_state(
                         &self.proto,
-                        self.cache.as_mut(),
+                        &mut self.cache,
                         Some(json!({ "hue": hue, "color_temp": 0 })),
                     )
                     .map(|_| {})
@@ -167,7 +167,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
         if is_color {
             self.lighting
-                .get_light_state(&self.proto, self.cache.as_mut())
+                .get_light_state(&self.proto, &mut self.cache)
                 .map(|light_state| light_state.hsv().hue())
         } else {
             Err(error::unsupported_operation(&format!("{} hue", model)))
@@ -183,7 +183,7 @@ impl LB110 {
                 self.lighting
                     .set_light_state(
                         &self.proto,
-                        self.cache.as_mut(),
+                        &mut self.cache,
                         Some(json!({ "saturation": saturation, "color_temp": 0 })),
                     )
                     .map(|_| {})
@@ -207,7 +207,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
         if is_color {
             self.lighting
-                .get_light_state(&self.proto, self.cache.as_mut())
+                .get_light_state(&self.proto, &mut self.cache)
                 .map(|light_state| light_state.hsv().saturation())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -226,7 +226,7 @@ impl LB110 {
                 self.lighting
                     .set_light_state(
                         &self.proto,
-                        self.cache.as_mut(),
+                        &mut self.cache,
                         Some(json!({ "brightness": brightness })),
                     )
                     .map(|_| {})
@@ -250,7 +250,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_dimmable(), sysinfo.model))?;
         if is_dimmable {
             self.lighting
-                .get_light_state(&self.proto, self.cache.as_mut())
+                .get_light_state(&self.proto, &mut self.cache)
                 .map(|light_state| light_state.hsv().value())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -270,7 +270,7 @@ impl LB110 {
                 self.lighting
                     .set_light_state(
                         &self.proto,
-                        self.cache.as_mut(),
+                        &mut self.cache,
                         Some(json!({ "color_temp": color_temp })),
                     )
                     .map(|_| {})
@@ -294,7 +294,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_variable_color_temp(), sysinfo.model))?;
         if is_variable_color_temp {
             self.lighting
-                .get_light_state(&self.proto, self.cache.as_mut())
+                .get_light_state(&self.proto, &mut self.cache)
                 .map(|light_state| light_state.hsv().color_temp())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -307,29 +307,23 @@ impl LB110 {
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
-        self.lighting.set_light_state(
-            &self.proto,
-            self.cache.as_mut(),
-            Some(json!({ "on_off": 1 })),
-        )
+        self.lighting
+            .set_light_state(&self.proto, &mut self.cache, Some(json!({ "on_off": 1 })))
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.lighting.set_light_state(
-            &self.proto,
-            self.cache.as_mut(),
-            Some(json!({ "on_off": 0 })),
-        )
+        self.lighting
+            .set_light_state(&self.proto, &mut self.cache, Some(json!({ "on_off": 0 })))
     }
 }
 
 impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, self.cache.as_mut(), delay)
+        self.system.reboot(&self.proto, &mut self.cache, delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reset(&self.proto, self.cache.as_mut(), delay)
+        self.system.reset(&self.proto, &mut self.cache, delay)
     }
 }
 
@@ -345,27 +339,26 @@ impl Time for LB110 {
 
 impl Cloud for LB110 {
     fn get_cloud_info(&mut self) -> Result<CloudInfo> {
-        self.cloud_setting
-            .get_info(&self.proto, self.cache.as_mut())
+        self.cloud_setting.get_info(&self.proto, &mut self.cache)
     }
 
     fn bind(&mut self, username: &str, password: &str) -> Result<()> {
         self.cloud_setting
-            .bind(&self.proto, self.cache.as_mut(), username, password)
+            .bind(&self.proto, &mut self.cache, username, password)
     }
 
     fn unbind(&mut self) -> Result<()> {
-        self.cloud_setting.unbind(&self.proto, self.cache.as_mut())
+        self.cloud_setting.unbind(&self.proto, &mut self.cache)
     }
 
     fn get_firmware_list(&mut self) -> Result<Vec<String>> {
         self.cloud_setting
-            .get_firmware_list(&self.proto, self.cache.as_mut())
+            .get_firmware_list(&self.proto, &mut self.cache)
     }
 
     fn set_server_url(&mut self, url: &str) -> Result<()> {
         self.cloud_setting
-            .set_server_url(&self.proto, self.cache.as_mut(), url)
+            .set_server_url(&self.proto, &mut self.cache, url)
     }
 }
 
@@ -386,7 +379,7 @@ impl Emeter for LB110 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.get_realtime(&self.proto, self.cache.as_mut())
+            self.emeter.get_realtime(&self.proto, &mut self.cache)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_realtime",
@@ -402,7 +395,7 @@ impl Emeter for LB110 {
 
         if has_emeter {
             self.emeter
-                .get_month_stats(&self.proto, self.cache.as_mut(), year)
+                .get_month_stats(&self.proto, &mut self.cache, year)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_month_stats",
@@ -419,7 +412,7 @@ impl Emeter for LB110 {
         if has_emeter {
             if util::u32_in_range(month, 1, 12) {
                 self.emeter
-                    .get_day_stats(&self.proto, self.cache.as_mut(), month, year)
+                    .get_day_stats(&self.proto, &mut self.cache, month, year)
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} get_emeter_day_stats: month={} (valid range: 1-12)",
@@ -440,7 +433,7 @@ impl Emeter for LB110 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.erase_stats(&self.proto, self.cache.as_mut())
+            self.emeter.erase_stats(&self.proto, &mut self.cache)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} erase_emeter_stats",
@@ -454,7 +447,7 @@ impl SysInfo for LB110 {
     type Info = LB110Info;
 
     fn sysinfo(&mut self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto, self.cache.as_mut())
+        self.sysinfo.get_sysinfo(&self.proto, &mut self.cache)
     }
 }
 

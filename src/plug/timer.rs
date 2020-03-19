@@ -1,9 +1,9 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::time::Duration;
 
 pub trait Timer {
@@ -25,11 +25,7 @@ impl TimerSettings {
         }
     }
 
-    pub(crate) fn get_rules(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<RuleList> {
+    pub(crate) fn get_rules(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<RuleList> {
         let request = Request::new(&self.ns, "get_rules", None);
 
         let response = if let Some(cache) = cache {
@@ -52,7 +48,7 @@ impl TimerSettings {
     pub(crate) fn add_rule(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         rule: Rule,
     ) -> Result<String> {
         if let Some(c) = cache {
@@ -81,7 +77,7 @@ impl TimerSettings {
     pub(crate) fn edit_rule(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         id: &str,
         rule: Rule,
     ) -> Result<()> {
@@ -111,7 +107,7 @@ impl TimerSettings {
     pub(crate) fn delete_rule_with_id(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         id: &str,
     ) -> Result<()> {
         if let Some(cache) = cache {
@@ -129,11 +125,7 @@ impl TimerSettings {
         Ok(())
     }
 
-    pub(crate) fn delete_all_rules(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<()> {
+    pub(crate) fn delete_all_rules(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
         if let Some(cache) = cache {
             cache.retain(|k, _| k.target != self.ns);
         }

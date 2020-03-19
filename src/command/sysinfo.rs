@@ -1,9 +1,8 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 use std::marker::PhantomData;
 
 /// The `SysInfo` trait represents devices that are capable of
@@ -29,11 +28,7 @@ impl<T> SystemInfo<T> {
 }
 
 impl<T: DeserializeOwned> SystemInfo<T> {
-    pub(crate) fn get_sysinfo(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<T> {
+    pub(crate) fn get_sysinfo(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<T> {
         let request = Request::new("system", "get_sysinfo", None);
 
         let response = if let Some(cache) = cache {

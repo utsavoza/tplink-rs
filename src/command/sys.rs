@@ -1,8 +1,8 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
-use serde_json::{json, Value};
+use serde_json::json;
 use std::time::Duration;
 
 /// The `Sys` trait represents devices that are capable of performing
@@ -33,7 +33,7 @@ impl System {
     pub(crate) fn reboot(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         delay: Option<Duration>,
     ) -> Result<()> {
         if let Some(cache) = cache {
@@ -57,7 +57,7 @@ impl System {
     pub(crate) fn reset(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         delay: Option<Duration>,
     ) -> Result<()> {
         if let Some(cache) = cache {

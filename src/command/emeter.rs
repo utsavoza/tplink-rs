@@ -1,4 +1,4 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
@@ -26,7 +26,7 @@ impl EmeterStats {
     pub(crate) fn get_realtime(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
     ) -> Result<RealtimeStats> {
         let request = Request::new(&self.ns, "get_realtime", None);
 
@@ -50,7 +50,7 @@ impl EmeterStats {
     pub(crate) fn get_day_stats(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         month: u32,
         year: u32,
     ) -> Result<DayStats> {
@@ -80,7 +80,7 @@ impl EmeterStats {
     pub(crate) fn get_month_stats(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         year: u32,
     ) -> Result<MonthStats> {
         let request = Request::new(&self.ns, "get_monthstat", Some(json!({ "year": year })));
@@ -102,11 +102,7 @@ impl EmeterStats {
         }))
     }
 
-    pub(crate) fn erase_stats(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<()> {
+    pub(crate) fn erase_stats(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
         if let Some(cache) = cache {
             cache.retain(|k, _| k.target != self.ns)
         }

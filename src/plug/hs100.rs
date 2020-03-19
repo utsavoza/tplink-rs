@@ -1,5 +1,5 @@
 use super::timer::{Rule, RuleList, Timer, TimerSettings};
-use crate::cache::Cache;
+use crate::cache::{Cache, ResponseCache};
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
@@ -27,7 +27,7 @@ pub struct HS100 {
     emeter: EmeterStats,
     netif: Netif,
     sysinfo: SystemInfo<HS100Info>,
-    cache: Option<Cache<Request, Value>>,
+    cache: ResponseCache,
 }
 
 impl HS100 {
@@ -105,7 +105,7 @@ impl HS100 {
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
+        if let Some(c) = &mut self.cache {
             c.retain(|k, _| k.target != "system");
         }
 
@@ -123,7 +123,7 @@ impl HS100 {
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
+        if let Some(c) = &mut self.cache {
             c.retain(|k, _| k.target != "system");
         }
 
@@ -139,7 +139,7 @@ impl Device for HS100 {
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
+        if let Some(c) = &mut self.cache {
             c.retain(|k, _| k.target != "system");
         }
 
@@ -157,11 +157,11 @@ impl Device for HS100 {
 
 impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, self.cache.as_mut(), delay)
+        self.system.reboot(&self.proto, &mut self.cache, delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reset(&self.proto, self.cache.as_mut(), delay)
+        self.system.reset(&self.proto, &mut self.cache, delay)
     }
 }
 
@@ -177,15 +177,14 @@ impl Time for HS100 {
 
 impl Timer for HS100 {
     fn get_timer_rules(&mut self) -> Result<RuleList> {
-        self.timer_setting
-            .get_rules(&self.proto, self.cache.as_mut())
+        self.timer_setting.get_rules(&self.proto, &mut self.cache)
     }
 
     fn add_timer_rule(&mut self, rule: Rule) -> Result<String> {
         let is_table_empty = self.get_timer_rules().map(|list| list.is_empty())?;
         if is_table_empty {
             self.timer_setting
-                .add_rule(&self.proto, self.cache.as_mut(), rule)
+                .add_rule(&self.proto, &mut self.cache, rule)
         } else {
             Err(error::unsupported_operation(
                 "add_timer_rule: table is full",
@@ -195,43 +194,42 @@ impl Timer for HS100 {
 
     fn edit_timer_rule(&mut self, id: &str, rule: Rule) -> Result<()> {
         self.timer_setting
-            .edit_rule(&self.proto, self.cache.as_mut(), id, rule)
+            .edit_rule(&self.proto, &mut self.cache, id, rule)
     }
 
     fn delete_timer_rule_with_id(&mut self, id: &str) -> Result<()> {
         self.timer_setting
-            .delete_rule_with_id(&self.proto, self.cache.as_mut(), id)
+            .delete_rule_with_id(&self.proto, &mut self.cache, id)
     }
 
     fn delete_all_timer_rules(&mut self) -> Result<()> {
         self.timer_setting
-            .delete_all_rules(&self.proto, self.cache.as_mut())
+            .delete_all_rules(&self.proto, &mut self.cache)
     }
 }
 
 impl Cloud for HS100 {
     fn get_cloud_info(&mut self) -> Result<CloudInfo> {
-        self.cloud_setting
-            .get_info(&self.proto, self.cache.as_mut())
+        self.cloud_setting.get_info(&self.proto, &mut self.cache)
     }
 
     fn bind(&mut self, username: &str, password: &str) -> Result<()> {
         self.cloud_setting
-            .bind(&self.proto, self.cache.as_mut(), username, password)
+            .bind(&self.proto, &mut self.cache, username, password)
     }
 
     fn unbind(&mut self) -> Result<()> {
-        self.cloud_setting.unbind(&self.proto, self.cache.as_mut())
+        self.cloud_setting.unbind(&self.proto, &mut self.cache)
     }
 
     fn get_firmware_list(&mut self) -> Result<Vec<String>> {
         self.cloud_setting
-            .get_firmware_list(&self.proto, self.cache.as_mut())
+            .get_firmware_list(&self.proto, &mut self.cache)
     }
 
     fn set_server_url(&mut self, url: &str) -> Result<()> {
         self.cloud_setting
-            .set_server_url(&self.proto, self.cache.as_mut(), url)
+            .set_server_url(&self.proto, &mut self.cache, url)
     }
 }
 
@@ -252,7 +250,7 @@ impl Emeter for HS100 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.get_realtime(&self.proto, self.cache.as_mut())
+            self.emeter.get_realtime(&self.proto, &mut self.cache)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_realtime",
@@ -268,7 +266,7 @@ impl Emeter for HS100 {
 
         if has_emeter {
             self.emeter
-                .get_month_stats(&self.proto, self.cache.as_mut(), year)
+                .get_month_stats(&self.proto, &mut self.cache, year)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_month_stats",
@@ -285,7 +283,7 @@ impl Emeter for HS100 {
         if has_emeter {
             if util::u32_in_range(month, 1, 12) {
                 self.emeter
-                    .get_day_stats(&self.proto, self.cache.as_mut(), month, year)
+                    .get_day_stats(&self.proto, &mut self.cache, month, year)
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} get_emeter_day_stats: month={} (valid range: 1-12)",
@@ -306,7 +304,7 @@ impl Emeter for HS100 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.erase_stats(&self.proto, self.cache.as_mut())
+            self.emeter.erase_stats(&self.proto, &mut self.cache)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} erase_emeter_stats",
@@ -320,7 +318,7 @@ impl SysInfo for HS100 {
     type Info = HS100Info;
 
     fn sysinfo(&mut self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto, self.cache.as_mut())
+        self.sysinfo.get_sysinfo(&self.proto, &mut self.cache)
     }
 }
 

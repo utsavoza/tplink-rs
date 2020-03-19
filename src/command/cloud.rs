@@ -1,9 +1,9 @@
-use crate::cache::Cache;
+use crate::cache::ResponseCache;
 use crate::error::Result;
 use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::fmt;
 
 pub trait Cloud {
@@ -25,11 +25,7 @@ impl CloudSettings {
         }
     }
 
-    pub(crate) fn get_info(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<CloudInfo> {
+    pub(crate) fn get_info(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<CloudInfo> {
         let request = Request::new(&self.ns, "get_info", None);
 
         let response = if let Some(cache) = cache {
@@ -52,7 +48,7 @@ impl CloudSettings {
     pub(crate) fn bind(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         username: &str,
         password: &str,
     ) -> Result<()> {
@@ -71,11 +67,7 @@ impl CloudSettings {
         Ok(())
     }
 
-    pub(crate) fn unbind(
-        &self,
-        proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
-    ) -> Result<()> {
+    pub(crate) fn unbind(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
         if let Some(c) = cache {
             c.retain(|k, _| k.target != self.ns)
         }
@@ -90,13 +82,15 @@ impl CloudSettings {
     pub(crate) fn get_firmware_list(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
     ) -> Result<Vec<String>> {
         let request = Request::new(&self.ns, "get_intl_fw_list", None);
 
-        let response = cache.map_or(proto.send_request(&request), |cache| {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))
-        })?;
+        let response = if let Some(cache) = cache {
+            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        } else {
+            proto.send_request(&request)?
+        };
 
         log::trace!("{:?}", response);
 
@@ -116,7 +110,7 @@ impl CloudSettings {
     pub(crate) fn set_server_url(
         &self,
         proto: &Proto,
-        cache: Option<&mut Cache<Request, Value>>,
+        cache: &mut ResponseCache,
         url: &str,
     ) -> Result<()> {
         if let Some(c) = cache {
