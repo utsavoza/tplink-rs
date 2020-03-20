@@ -3,6 +3,7 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::rc::Rc;
 
 /// The `Time` trait represents devices that are capable of maintaining
 /// and providing their time and timezone.
@@ -18,23 +19,26 @@ pub trait Time {
 
 pub(crate) struct TimeSettings {
     ns: String,
+    proto: Rc<Proto>,
 }
 
 impl TimeSettings {
-    pub(crate) fn new(ns: &str) -> Self {
+    pub(crate) fn new(ns: &str, proto: Rc<Proto>) -> Self {
         TimeSettings {
             ns: String::from(ns),
+            proto,
         }
     }
 
-    pub(crate) fn get_time(&self, proto: &Proto) -> Result<DeviceTime> {
-        let response = proto
+    pub(crate) fn get_time(&self) -> Result<DeviceTime> {
+        let response = self
+            .proto
             .send_request(&Request::new(&self.ns, "get_time", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
                     panic!(
                         "invalid response from host with address {}: {}",
-                        proto.host(),
+                        self.proto.host(),
                         err
                     )
                 })
@@ -45,14 +49,15 @@ impl TimeSettings {
         Ok(response)
     }
 
-    pub(crate) fn get_timezone(&self, proto: &Proto) -> Result<DeviceTimeZone> {
-        let response = proto
+    pub(crate) fn get_timezone(&self) -> Result<DeviceTimeZone> {
+        let response = self
+            .proto
             .send_request(&Request::new(&self.ns, "get_timezone", None))
             .map(|response| {
                 serde_json::from_value(response).unwrap_or_else(|err| {
                     panic!(
                         "invalid response from host with address {}: {}",
-                        proto.host(),
+                        self.proto.host(),
                         err
                     )
                 })

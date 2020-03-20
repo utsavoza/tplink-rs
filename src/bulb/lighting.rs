@@ -4,29 +4,32 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::rc::Rc;
 
 pub(super) struct Lighting {
     ns: String,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
 }
 
 impl Lighting {
-    pub(super) fn new(ns: &str) -> Lighting {
+    pub(super) fn new(ns: &str, proto: Rc<Proto>, cache: Rc<ResponseCache>) -> Lighting {
         Lighting {
             ns: String::from(ns),
+            cache,
+            proto,
         }
     }
 
-    pub(super) fn get_light_state(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-    ) -> Result<LightState> {
+    pub(super) fn get_light_state(&self) -> Result<LightState> {
         let request = Request::new(&self.ns, "get_light_state", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("({}) {:?}", self.ns, response);
@@ -34,29 +37,25 @@ impl Lighting {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(super) fn set_light_state(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        arg: Option<Value>,
-    ) -> Result<()> {
-        if let Some(c) = cache {
-            c.retain(|k, _| k.target != self.ns)
+    pub(super) fn set_light_state(&self, arg: Option<Value>) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto
+        let response = self
+            .proto
             .send_request(&Request::new(&self.ns, "transition_light_state", arg))
             .map(|response| {
                 serde_json::from_value::<LightState>(response).unwrap_or_else(|err| {
                     panic!(
                         "invalid response from host with address {}: {}",
-                        proto.host(),
+                        self.proto.host(),
                         err
                     )
                 })

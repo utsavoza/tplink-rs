@@ -3,6 +3,7 @@ use crate::error::{self, Result};
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
@@ -36,6 +37,12 @@ impl Hash for Request {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.target.hash(state);
         self.command.hash(state);
+    }
+}
+
+impl fmt::Debug for Request {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.target, self.command)
     }
 }
 

@@ -3,6 +3,7 @@ use crate::error::Result;
 use crate::proto::{Proto, Request};
 
 use serde_json::json;
+use std::rc::Rc;
 use std::time::Duration;
 
 /// The `Sys` trait represents devices that are capable of performing
@@ -21,29 +22,28 @@ pub trait Sys {
 
 pub(crate) struct System {
     ns: String,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
 }
 
 impl System {
-    pub(crate) fn new(ns: &str) -> System {
+    pub(crate) fn new(ns: &str, proto: Rc<Proto>, cache: Rc<ResponseCache>) -> System {
         System {
             ns: String::from(ns),
+            proto,
+            cache,
         }
     }
 
-    pub(crate) fn reboot(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        delay: Option<Duration>,
-    ) -> Result<()> {
-        if let Some(cache) = cache {
+    pub(crate) fn reboot(&self, delay: Option<Duration>) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
             log::trace!("({}) {:?}", self.ns, cache);
-            cache.clear();
+            cache.borrow_mut().clear();
         }
 
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "reboot",
             Some(json!({ "delay": delay_in_secs })),
@@ -54,20 +54,15 @@ impl System {
         Ok(())
     }
 
-    pub(crate) fn reset(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        delay: Option<Duration>,
-    ) -> Result<()> {
-        if let Some(cache) = cache {
+    pub(crate) fn reset(&self, delay: Option<Duration>) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
             log::trace!("({}) {:?}", self.ns, cache);
-            cache.clear();
+            cache.borrow_mut().clear();
         }
 
         let delay_in_secs = delay.map_or(1, |duration| duration.as_secs());
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "reset",
             Some(json!({ "delay": delay_in_secs })),

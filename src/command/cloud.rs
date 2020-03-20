@@ -5,6 +5,7 @@ use crate::proto::{Proto, Request};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt;
+use std::rc::Rc;
 
 pub trait Cloud {
     fn get_cloud_info(&mut self) -> Result<CloudInfo>;
@@ -16,22 +17,28 @@ pub trait Cloud {
 
 pub(crate) struct CloudSettings {
     ns: String,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
 }
 
 impl CloudSettings {
-    pub(crate) fn new(ns: &str) -> CloudSettings {
+    pub(crate) fn new(ns: &str, proto: Rc<Proto>, cache: Rc<ResponseCache>) -> CloudSettings {
         CloudSettings {
             ns: String::from(ns),
+            proto,
+            cache,
         }
     }
 
-    pub(crate) fn get_info(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<CloudInfo> {
+    pub(crate) fn get_info(&self) -> Result<CloudInfo> {
         let request = Request::new(&self.ns, "get_info", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("{:?}", response);
@@ -39,24 +46,18 @@ impl CloudSettings {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(crate) fn bind(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        username: &str,
-        password: &str,
-    ) -> Result<()> {
-        if let Some(c) = cache {
-            c.retain(|k, _| k.target != self.ns)
+    pub(crate) fn bind(&self, username: &str, password: &str) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "bind",
             Some(json!({ "username": username, "password": password })),
@@ -67,29 +68,29 @@ impl CloudSettings {
         Ok(())
     }
 
-    pub(crate) fn unbind(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
-        if let Some(c) = cache {
-            c.retain(|k, _| k.target != self.ns)
+    pub(crate) fn unbind(&self) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto.send_request(&Request::new(&self.ns, "unbind", None))?;
+        let response = self
+            .proto
+            .send_request(&Request::new(&self.ns, "unbind", None))?;
 
         log::trace!("{:?}", response);
 
         Ok(())
     }
 
-    pub(crate) fn get_firmware_list(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-    ) -> Result<Vec<String>> {
+    pub(crate) fn get_firmware_list(&self) -> Result<Vec<String>> {
         let request = Request::new(&self.ns, "get_intl_fw_list", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("{:?}", response);
@@ -99,7 +100,7 @@ impl CloudSettings {
             .unwrap_or_else(|err| {
                 panic!(
                     "invalid response from host with address {}: {}",
-                    proto.host(),
+                    self.proto.host(),
                     err
                 )
             });
@@ -107,17 +108,12 @@ impl CloudSettings {
         Ok(fw_list)
     }
 
-    pub(crate) fn set_server_url(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        url: &str,
-    ) -> Result<()> {
-        if let Some(c) = cache {
-            c.retain(|k, _| k.target != self.ns)
+    pub(crate) fn set_server_url(&self, url: &str) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "set_server_url",
             Some(json!({ "server": url })),

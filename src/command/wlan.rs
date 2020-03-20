@@ -3,6 +3,7 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::rc::Rc;
 use std::time::Duration;
 
 pub trait Wlan {
@@ -15,18 +16,19 @@ pub trait Wlan {
 
 pub(crate) struct Netif {
     ns: String,
+    proto: Rc<Proto>,
 }
 
 impl Netif {
-    pub(crate) fn new() -> Netif {
+    pub(crate) fn new(proto: Rc<Proto>) -> Netif {
         Netif {
             ns: String::from("netif"),
+            proto,
         }
     }
 
     pub(crate) fn get_scan_info(
         &self,
-        proto: &Proto,
         refresh: bool,
         timeout: Option<Duration>,
     ) -> Result<Vec<AccessPoint>> {
@@ -34,11 +36,11 @@ impl Netif {
         // Note: If scan timeout is greater than proto's read timeout,
         // the method returns with an ErrorKind::WouldBlock error.
         let timeout = timeout.map_or(
-            proto.read_timeout().map_or(3, |to| to.as_secs()),
+            self.proto.read_timeout().map_or(3, |to| to.as_secs()),
             |duration| duration.as_secs(),
         );
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "get_scaninfo",
             Some(json!({ "refresh": refresh, "timeout": timeout })),
@@ -51,7 +53,7 @@ impl Netif {
             .unwrap_or_else(|err| {
                 panic!(
                     "invalid response from host with address {}: {}",
-                    proto.host(),
+                    self.proto.host(),
                     err
                 )
             }))

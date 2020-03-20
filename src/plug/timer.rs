@@ -4,6 +4,7 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::rc::Rc;
 use std::time::Duration;
 
 pub trait Timer {
@@ -16,22 +17,28 @@ pub trait Timer {
 
 pub(crate) struct TimerSettings {
     ns: String,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
 }
 
 impl TimerSettings {
-    pub(crate) fn new(ns: &str) -> TimerSettings {
+    pub(crate) fn new(ns: &str, proto: Rc<Proto>, cache: Rc<ResponseCache>) -> TimerSettings {
         TimerSettings {
             ns: String::from(ns),
+            proto,
+            cache,
         }
     }
 
-    pub(crate) fn get_rules(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<RuleList> {
+    pub(crate) fn get_rules(&self) -> Result<RuleList> {
         let request = Request::new(&self.ns, "get_rules", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("{:?}", response);
@@ -39,20 +46,15 @@ impl TimerSettings {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(crate) fn add_rule(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        rule: Rule,
-    ) -> Result<String> {
-        if let Some(c) = cache {
-            c.retain(|k, _| k.target != self.ns)
+    pub(crate) fn add_rule(&self, rule: Rule) -> Result<String> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
         let Rule {
@@ -63,7 +65,7 @@ impl TimerSettings {
             ..
         } = rule;
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "add_rule",
             Some(json!({"enable": enable, "delay": delay, "act": act, "name": name})),
@@ -74,15 +76,9 @@ impl TimerSettings {
         Ok(response["id"].to_string())
     }
 
-    pub(crate) fn edit_rule(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        id: &str,
-        rule: Rule,
-    ) -> Result<()> {
-        if let Some(cache) = cache {
-            cache.retain(|k, _| k.target != self.ns)
+    pub(crate) fn edit_rule(&self, id: &str, rule: Rule) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
         let Rule {
@@ -93,7 +89,7 @@ impl TimerSettings {
             ..
         } = rule;
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "edit_rule",
             Some(json!({"id": id, "enable": enable, "delay": delay, "act": act, "name": name})),
@@ -104,17 +100,12 @@ impl TimerSettings {
         Ok(())
     }
 
-    pub(crate) fn delete_rule_with_id(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        id: &str,
-    ) -> Result<()> {
-        if let Some(cache) = cache {
-            cache.retain(|k, _| k.target != self.ns)
+    pub(crate) fn delete_rule_with_id(&self, id: &str) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto.send_request(&Request::new(
+        let response = self.proto.send_request(&Request::new(
             &self.ns,
             "delete_rule",
             Some(json!({ "id": id })),
@@ -125,12 +116,14 @@ impl TimerSettings {
         Ok(())
     }
 
-    pub(crate) fn delete_all_rules(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
-        if let Some(cache) = cache {
-            cache.retain(|k, _| k.target != self.ns);
+    pub(crate) fn delete_all_rules(&self) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns);
         }
 
-        let response = proto.send_request(&Request::new(&self.ns, "delete_all_rules", None))?;
+        let response =
+            self.proto
+                .send_request(&Request::new(&self.ns, "delete_all_rules", None))?;
 
         log::trace!("{:?}", response);
 

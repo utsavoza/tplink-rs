@@ -13,21 +13,23 @@ use crate::wlan::{AccessPoint, Netif, Wlan};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
+use std::rc::Rc;
 use std::time::Duration;
 
 /// A TP-Link Wi-Fi Smart Plug (HS100).
 pub struct HS100 {
-    proto: Proto,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
     system: System,
-    time_setting: TimeSettings,
-    timer_setting: TimerSettings,
-    cloud_setting: CloudSettings,
+    time_settings: TimeSettings,
+    timer_settings: TimerSettings,
+    cloud_settings: CloudSettings,
     emeter: EmeterStats,
     netif: Netif,
     sysinfo: SystemInfo<HS100Info>,
-    cache: ResponseCache,
 }
 
 impl HS100 {
@@ -35,16 +37,26 @@ impl HS100 {
     where
         A: Into<IpAddr>,
     {
+        let proto = Rc::new(proto::Builder::default(host));
+        let cache = Rc::new(Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3)))));
+        let system = System::new("system", Rc::clone(&proto), Rc::clone(&cache));
+        let time_settings = TimeSettings::new("time", Rc::clone(&proto));
+        let timer_settings = TimerSettings::new("count_down", Rc::clone(&proto), Rc::clone(&cache));
+        let cloud_settings = CloudSettings::new("cnCloud", Rc::clone(&proto), Rc::clone(&cache));
+        let emeter = EmeterStats::new("emeter", Rc::clone(&proto), Rc::clone(&cache));
+        let netif = Netif::new(Rc::clone(&proto));
+        let sysinfo = SystemInfo::new(Rc::clone(&proto), Rc::clone(&cache));
+
         HS100 {
-            proto: proto::Builder::default(host),
-            system: System::new("system"),
-            time_setting: TimeSettings::new("time"),
-            timer_setting: TimerSettings::new("count_down"),
-            cloud_setting: CloudSettings::new("cnCloud"),
-            emeter: EmeterStats::new("emeter"),
-            netif: Netif::new(),
-            sysinfo: SystemInfo::new(),
-            cache: Some(Cache::with_ttl(Duration::from_secs(3))),
+            system,
+            time_settings,
+            timer_settings,
+            cloud_settings,
+            emeter,
+            netif,
+            sysinfo,
+            proto,
+            cache,
         }
     }
 
@@ -89,8 +101,8 @@ impl HS100 {
     }
 
     pub(super) fn turn_on_led(&mut self) -> Result<()> {
-        if let Some(c) = self.cache.as_mut() {
-            c.retain(|k, _| k.target != "system");
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != "system");
         }
 
         let response = self.proto.send_request(&Request::new(
@@ -105,8 +117,8 @@ impl HS100 {
     }
 
     pub(super) fn turn_off_led(&mut self) -> Result<()> {
-        if let Some(c) = &mut self.cache {
-            c.retain(|k, _| k.target != "system");
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != "system");
         }
 
         let response = self.proto.send_request(&Request::new(
@@ -123,8 +135,8 @@ impl HS100 {
 
 impl Device for HS100 {
     fn turn_on(&mut self) -> Result<()> {
-        if let Some(c) = &mut self.cache {
-            c.retain(|k, _| k.target != "system");
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != "system");
         }
 
         let response = self.proto.send_request(&Request::new(
@@ -139,8 +151,8 @@ impl Device for HS100 {
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        if let Some(c) = &mut self.cache {
-            c.retain(|k, _| k.target != "system");
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != "system");
         }
 
         let response = self.proto.send_request(&Request::new(
@@ -157,34 +169,33 @@ impl Device for HS100 {
 
 impl Sys for HS100 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, &mut self.cache, delay)
+        self.system.reboot(delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reset(&self.proto, &mut self.cache, delay)
+        self.system.reset(delay)
     }
 }
 
 impl Time for HS100 {
     fn time(&mut self) -> Result<DeviceTime> {
-        self.time_setting.get_time(&self.proto)
+        self.time_settings.get_time()
     }
 
     fn timezone(&mut self) -> Result<DeviceTimeZone> {
-        self.time_setting.get_timezone(&self.proto)
+        self.time_settings.get_timezone()
     }
 }
 
 impl Timer for HS100 {
     fn get_timer_rules(&mut self) -> Result<RuleList> {
-        self.timer_setting.get_rules(&self.proto, &mut self.cache)
+        self.timer_settings.get_rules()
     }
 
     fn add_timer_rule(&mut self, rule: Rule) -> Result<String> {
         let is_table_empty = self.get_timer_rules().map(|list| list.is_empty())?;
         if is_table_empty {
-            self.timer_setting
-                .add_rule(&self.proto, &mut self.cache, rule)
+            self.timer_settings.add_rule(rule)
         } else {
             Err(error::unsupported_operation(
                 "add_timer_rule: table is full",
@@ -193,43 +204,37 @@ impl Timer for HS100 {
     }
 
     fn edit_timer_rule(&mut self, id: &str, rule: Rule) -> Result<()> {
-        self.timer_setting
-            .edit_rule(&self.proto, &mut self.cache, id, rule)
+        self.timer_settings.edit_rule(id, rule)
     }
 
     fn delete_timer_rule_with_id(&mut self, id: &str) -> Result<()> {
-        self.timer_setting
-            .delete_rule_with_id(&self.proto, &mut self.cache, id)
+        self.timer_settings.delete_rule_with_id(id)
     }
 
     fn delete_all_timer_rules(&mut self) -> Result<()> {
-        self.timer_setting
-            .delete_all_rules(&self.proto, &mut self.cache)
+        self.timer_settings.delete_all_rules()
     }
 }
 
 impl Cloud for HS100 {
     fn get_cloud_info(&mut self) -> Result<CloudInfo> {
-        self.cloud_setting.get_info(&self.proto, &mut self.cache)
+        self.cloud_settings.get_info()
     }
 
     fn bind(&mut self, username: &str, password: &str) -> Result<()> {
-        self.cloud_setting
-            .bind(&self.proto, &mut self.cache, username, password)
+        self.cloud_settings.bind(username, password)
     }
 
     fn unbind(&mut self) -> Result<()> {
-        self.cloud_setting.unbind(&self.proto, &mut self.cache)
+        self.cloud_settings.unbind()
     }
 
     fn get_firmware_list(&mut self) -> Result<Vec<String>> {
-        self.cloud_setting
-            .get_firmware_list(&self.proto, &mut self.cache)
+        self.cloud_settings.get_firmware_list()
     }
 
     fn set_server_url(&mut self, url: &str) -> Result<()> {
-        self.cloud_setting
-            .set_server_url(&self.proto, &mut self.cache, url)
+        self.cloud_settings.set_server_url(url)
     }
 }
 
@@ -239,7 +244,7 @@ impl Wlan for HS100 {
         refresh: bool,
         timeout: Option<Duration>,
     ) -> Result<Vec<AccessPoint>> {
-        self.netif.get_scan_info(&self.proto, refresh, timeout)
+        self.netif.get_scan_info(refresh, timeout)
     }
 }
 
@@ -250,7 +255,7 @@ impl Emeter for HS100 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.get_realtime(&self.proto, &mut self.cache)
+            self.emeter.get_realtime()
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_realtime",
@@ -265,8 +270,7 @@ impl Emeter for HS100 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter
-                .get_month_stats(&self.proto, &mut self.cache, year)
+            self.emeter.get_month_stats(year)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_month_stats",
@@ -282,8 +286,7 @@ impl Emeter for HS100 {
 
         if has_emeter {
             if util::u32_in_range(month, 1, 12) {
-                self.emeter
-                    .get_day_stats(&self.proto, &mut self.cache, month, year)
+                self.emeter.get_day_stats(month, year)
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} get_emeter_day_stats: month={} (valid range: 1-12)",
@@ -304,7 +307,7 @@ impl Emeter for HS100 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.erase_stats(&self.proto, &mut self.cache)
+            self.emeter.erase_stats()
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} erase_emeter_stats",
@@ -318,7 +321,7 @@ impl SysInfo for HS100 {
     type Info = HS100Info;
 
     fn sysinfo(&mut self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto, &mut self.cache)
+        self.sysinfo.get_sysinfo()
     }
 }
 
