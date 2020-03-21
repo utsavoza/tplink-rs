@@ -39,22 +39,15 @@ impl HS100 {
     {
         let proto = Rc::new(proto::Builder::default(host));
         let cache = Rc::new(Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3)))));
-        let system = System::new("system", Rc::clone(&proto), Rc::clone(&cache));
-        let time_settings = TimeSettings::new("time", Rc::clone(&proto));
-        let timer_settings = TimerSettings::new("count_down", Rc::clone(&proto), Rc::clone(&cache));
-        let cloud_settings = CloudSettings::new("cnCloud", Rc::clone(&proto), Rc::clone(&cache));
-        let emeter = EmeterStats::new("emeter", Rc::clone(&proto), Rc::clone(&cache));
-        let netif = Netif::new(Rc::clone(&proto));
-        let sysinfo = SystemInfo::new(Rc::clone(&proto), Rc::clone(&cache));
 
         HS100 {
-            system,
-            time_settings,
-            timer_settings,
-            cloud_settings,
-            emeter,
-            netif,
-            sysinfo,
+            system: System::new("system", proto.clone(), cache.clone()),
+            time_settings: TimeSettings::new("time", proto.clone()),
+            timer_settings: TimerSettings::new("count_down", proto.clone(), cache.clone()),
+            cloud_settings: CloudSettings::new("cnCloud", proto.clone(), cache.clone()),
+            emeter: EmeterStats::new("emeter", proto.clone(), cache.clone()),
+            netif: Netif::new(proto.clone()),
+            sysinfo: SystemInfo::new(proto.clone(), cache.clone()),
             proto,
             cache,
         }

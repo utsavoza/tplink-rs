@@ -37,39 +37,23 @@ impl LB110 {
     {
         let proto = Rc::new(proto::Builder::default(host));
         let cache = Rc::new(Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3)))));
-        let lighting = Lighting::new(
-            "smartlife.iot.smartbulb.lightingservice",
-            Rc::clone(&proto),
-            Rc::clone(&cache),
-        );
-        let system = System::new(
-            "smartlife.iot.common.system",
-            Rc::clone(&proto),
-            Rc::clone(&cache),
-        );
-        let cloud_settings = CloudSettings::new(
-            "smartlife.iot.common.cloud",
-            Rc::clone(&proto),
-            Rc::clone(&cache),
-        );
-        let emeter = EmeterStats::new(
-            "smartlife.iot.common.emeter",
-            Rc::clone(&proto),
-            Rc::clone(&cache),
-        );
-        let sysinfo = SystemInfo::new(Rc::clone(&proto), Rc::clone(&cache));
-        let time_settings =
-            TimeSettings::new("smartlife.iot.common.timesetting", Rc::clone(&proto));
-        let netif = Netif::new(Rc::clone(&proto));
 
         LB110 {
-            system,
-            lighting,
-            cloud_settings,
-            emeter,
-            sysinfo,
-            time_settings,
-            netif,
+            system: System::new("smartlife.iot.common.system", proto.clone(), cache.clone()),
+            lighting: Lighting::new(
+                "smartlife.iot.smartbulb.lightingservice",
+                proto.clone(),
+                cache.clone(),
+            ),
+            cloud_settings: CloudSettings::new(
+                "smartlife.iot.common.cloud",
+                proto.clone(),
+                cache.clone(),
+            ),
+            emeter: EmeterStats::new("smartlife.iot.common.emeter", proto.clone(), cache.clone()),
+            time_settings: TimeSettings::new("smartlife.iot.common.timesetting", proto.clone()),
+            netif: Netif::new(proto.clone()),
+            sysinfo: SystemInfo::new(proto, cache),
         }
     }
 
