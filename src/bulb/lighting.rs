@@ -90,7 +90,7 @@ impl LightState {
 }
 
 /// The HSV (Hue, Saturation, Value) state of the bulb.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HSV {
     hue: u32,
     saturation: u32,

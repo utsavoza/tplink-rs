@@ -1,6 +1,7 @@
 use super::timer::{Rule, RuleList, Timer, TimerSettings};
 use crate::cache::{Cache, ResponseCache};
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::config::Config;
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
 use crate::error::{self, Result};
@@ -37,8 +38,41 @@ impl HS100 {
     where
         A: Into<IpAddr>,
     {
-        let proto = Rc::new(proto::Builder::default(host));
-        let cache = Rc::new(Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3)))));
+        let proto = proto::Builder::default(host);
+        let cache = Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3))));
+        HS100::with(proto, cache)
+    }
+
+    pub(super) fn with_config(config: Config) -> HS100 {
+        let addr = config.addr;
+        let read_timeout = config.read_timeout;
+        let write_timeout = config.write_timeout;
+        let buffer_size = config.buffer_size;
+
+        let proto = proto::Builder::new(addr)
+            .read_timeout(read_timeout)
+            .write_timeout(write_timeout)
+            .buffer_size(buffer_size)
+            .build();
+
+        let cache_config = config.cache_config;
+        let cache = if cache_config.enable_cache {
+            let ttl = cache_config.ttl.unwrap_or(Duration::from_secs(3));
+            let cache = cache_config.initial_capacity.map_or_else(
+                || Cache::with_ttl(ttl),
+                |capacity| Cache::with_ttl_and_capacity(ttl, capacity),
+            );
+            Some(RefCell::new(cache))
+        } else {
+            None
+        };
+
+        HS100::with(proto, cache)
+    }
+
+    fn with(proto: Proto, cache: ResponseCache) -> HS100 {
+        let proto = Rc::new(proto);
+        let cache = Rc::new(cache);
 
         HS100 {
             system: System::new("system", proto.clone(), cache.clone()),

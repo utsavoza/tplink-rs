@@ -9,6 +9,7 @@ use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
+#[derive(Debug)]
 pub struct Request {
     pub target: String,
     pub command: String,
@@ -40,15 +41,15 @@ impl Hash for Request {
     }
 }
 
-impl fmt::Debug for Request {
+impl fmt::Display for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {})", self.target, self.command)
     }
 }
 
+#[derive(Debug)]
 pub struct Builder {
-    host: IpAddr,
-    port: u16,
+    addr: SocketAddr,
     buffer_size: usize,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
@@ -57,13 +58,12 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new<A>(host: A) -> Builder
+    pub fn new<A>(addr: A) -> Builder
     where
-        A: Into<IpAddr>,
+        A: Into<SocketAddr>,
     {
         Builder {
-            host: host.into(),
-            port: 9999,
+            addr: addr.into(),
             buffer_size: 4096,
             read_timeout: None,
             write_timeout: None,
@@ -72,22 +72,16 @@ impl Builder {
         }
     }
 
-    pub fn default<A>(host: A) -> Proto
+    pub fn default<A>(addr: A) -> Proto
     where
         A: Into<IpAddr>,
     {
-        Self::new(host)
-            .port(9999)
+        Self::new(SocketAddr::new(addr.into(), 9999))
             .buffer_size(4096)
             .read_timeout(Duration::from_secs(3))
             .write_timeout(Duration::from_secs(3))
             .broadcast(false)
             .build()
-    }
-
-    pub fn port(&mut self, port: u16) -> &mut Builder {
-        self.port = port;
-        self
     }
 
     pub fn buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
@@ -117,7 +111,7 @@ impl Builder {
 
     pub fn build(&mut self) -> Proto {
         Proto {
-            addr: SocketAddr::new(self.host, self.port),
+            addr: self.addr,
             buffer_size: self.buffer_size,
             read_timeout: self.read_timeout,
             write_timeout: self.write_timeout,
@@ -127,6 +121,7 @@ impl Builder {
     }
 }
 
+#[derive(Debug)]
 pub struct Proto {
     addr: SocketAddr,
     buffer_size: usize,

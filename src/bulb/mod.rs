@@ -4,6 +4,7 @@ mod lighting;
 pub use self::lb110::LB110;
 use crate::bulb::lighting::HSV;
 use crate::cloud::{Cloud, CloudInfo};
+use crate::config::Config;
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, MonthStats, RealtimeStats};
 use crate::error::Result;
@@ -247,6 +248,12 @@ impl Bulb<LB110> {
     {
         Bulb {
             device: LB110::new(host),
+        }
+    }
+
+    pub fn with_config(config: Config) -> Bulb<LB110> {
+        Bulb {
+            device: LB110::with_config(config),
         }
     }
 

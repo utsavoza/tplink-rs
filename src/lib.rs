@@ -2,6 +2,7 @@ mod bulb;
 #[allow(dead_code)]
 mod cache;
 mod command;
+pub mod config;
 #[allow(dead_code)]
 mod crypto;
 mod discover;

@@ -1,10 +1,11 @@
 use super::lighting::{LightState, Lighting, HSV};
-use crate::cache::Cache;
+use crate::cache::{Cache, ResponseCache};
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::config::Config;
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
 use crate::error::{self, Result};
-use crate::proto;
+use crate::proto::{self, Proto};
 use crate::sys::{Sys, System};
 use crate::sysinfo::{SysInfo, SystemInfo};
 use crate::time::{DeviceTime, DeviceTimeZone, Time, TimeSettings};
@@ -35,8 +36,41 @@ impl LB110 {
     where
         A: Into<IpAddr>,
     {
-        let proto = Rc::new(proto::Builder::default(host));
-        let cache = Rc::new(Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3)))));
+        let proto = proto::Builder::default(host);
+        let cache = Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3))));
+        LB110::with(proto, cache)
+    }
+
+    pub(super) fn with_config(config: Config) -> LB110 {
+        let addr = config.addr;
+        let read_timeout = config.read_timeout;
+        let write_timeout = config.write_timeout;
+        let buffer_size = config.buffer_size;
+
+        let proto = proto::Builder::new(addr)
+            .read_timeout(read_timeout)
+            .write_timeout(write_timeout)
+            .buffer_size(buffer_size)
+            .build();
+
+        let cache_config = config.cache_config;
+        let cache = if cache_config.enable_cache {
+            let ttl = cache_config.ttl.unwrap_or(Duration::from_secs(3));
+            let cache = cache_config.initial_capacity.map_or_else(
+                || Cache::with_ttl(ttl),
+                |capacity| Cache::with_ttl_and_capacity(ttl, capacity),
+            );
+            Some(RefCell::new(cache))
+        } else {
+            None
+        };
+
+        LB110::with(proto, cache)
+    }
+
+    fn with(proto: Proto, cache: ResponseCache) -> LB110 {
+        let proto = Rc::new(proto);
+        let cache = Rc::new(cache);
 
         LB110 {
             system: System::new("smartlife.iot.common.system", proto.clone(), cache.clone()),
@@ -117,14 +151,12 @@ impl LB110 {
                 && util::u32_in_range(saturation, 0, 100)
                 && util::u32_in_range(value, 0, 100)
             {
-                self.lighting
-                    .set_light_state(Some(json!({
-                        "hue": hue,
-                        "saturation": saturation,
-                        "value": value,
-                        "color_temp": 0,
-                    })))
-                    .map(|_| {})
+                self.lighting.set_light_state(Some(json!({
+                    "hue": hue,
+                    "saturation": saturation,
+                    "value": value,
+                    "color_temp": 0,
+                })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_hsv: ({}°, {}%, {}%) (valid range: hue(0-360°), saturation(0-100%), value(0-100%))",
@@ -147,7 +179,6 @@ impl LB110 {
             if util::u32_in_range(hue, 0, 360) {
                 self.lighting
                     .set_light_state(Some(json!({ "hue": hue, "color_temp": 0 })))
-                    .map(|_| {})
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_hue: {}° (valid range: 0-360°)",
@@ -183,7 +214,6 @@ impl LB110 {
             if util::u32_in_range(saturation, 0, 100) {
                 self.lighting
                     .set_light_state(Some(json!({ "saturation": saturation, "color_temp": 0 })))
-                    .map(|_| {})
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_saturation: {}% (valid range: 0-100%)",
@@ -222,7 +252,6 @@ impl LB110 {
             if util::u32_in_range(brightness, 0, 100) {
                 self.lighting
                     .set_light_state(Some(json!({ "brightness": brightness })))
-                    .map(|_| {})
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_brightness: {}% (valid range: 0-100%)",
@@ -262,7 +291,6 @@ impl LB110 {
             if util::u32_in_range(color_temp, range.0, range.1) {
                 self.lighting
                     .set_light_state(Some(json!({ "color_temp": color_temp })))
-                    .map(|_| {})
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_color_temp: {} (valid range: {}-{}K)",

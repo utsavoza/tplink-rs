@@ -50,7 +50,7 @@ pub fn discover() -> Result<HashMap<IpAddr, DeviceKind>> {
         "smartlife.iot.smartbulb.lightingservice": {"get_light_state": {}},
     });
     let request = serde_json::to_vec(&query).unwrap();
-    let proto = proto::Builder::new([255, 255, 255, 255])
+    let proto = proto::Builder::new(([255, 255, 255, 255], 9999))
         .broadcast(true)
         .read_timeout(Duration::from_secs(3))
         .write_timeout(Duration::from_secs(3))
