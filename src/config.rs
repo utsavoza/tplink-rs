@@ -10,8 +10,45 @@ pub struct Config {
     pub(crate) buffer_size: usize,
 }
 
+impl Config {
+    pub fn for_host<A>(addr: A) -> ConfigBuilder
+    where
+        A: Into<IpAddr>,
+    {
+        ConfigBuilder::new(addr)
+    }
+
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    pub fn read_timeout(&self) -> Duration {
+        self.read_timeout
+    }
+
+    pub fn write_timeout(&self) -> Duration {
+        self.write_timeout
+    }
+
+    pub fn cache_enabled(&self) -> bool {
+        self.cache_config.enable_cache
+    }
+
+    pub fn cache_ttl(&self) -> Option<Duration> {
+        self.cache_config.ttl
+    }
+
+    pub fn cache_initial_capacity(&self) -> Option<usize> {
+        self.cache_config.initial_capacity
+    }
+
+    pub fn buffer_size(&self) -> usize {
+        self.buffer_size
+    }
+}
+
 #[derive(Debug)]
-pub struct Builder {
+pub struct ConfigBuilder {
     host: IpAddr,
     port: u16,
     read_timeout: Option<Duration>,
@@ -37,12 +74,12 @@ impl Default for CacheConfig {
     }
 }
 
-impl Builder {
-    pub fn for_host<A>(addr: A) -> Builder
+impl ConfigBuilder {
+    pub fn new<A>(addr: A) -> ConfigBuilder
     where
         A: Into<IpAddr>,
     {
-        Builder {
+        ConfigBuilder {
             host: addr.into(),
             port: 9999,
             read_timeout: None,
@@ -52,17 +89,17 @@ impl Builder {
         }
     }
 
-    pub fn with_port(&mut self, port: u16) -> &mut Builder {
+    pub fn with_port(&mut self, port: u16) -> &mut ConfigBuilder {
         self.port = port;
         self
     }
 
-    pub fn with_read_timeout(&mut self, duration: Duration) -> &mut Builder {
+    pub fn with_read_timeout(&mut self, duration: Duration) -> &mut ConfigBuilder {
         self.read_timeout = Some(duration);
         self
     }
 
-    pub fn with_write_timeout(&mut self, duration: Duration) -> &mut Builder {
+    pub fn with_write_timeout(&mut self, duration: Duration) -> &mut ConfigBuilder {
         self.write_timeout = Some(duration);
         self
     }
@@ -71,7 +108,7 @@ impl Builder {
         &mut self,
         ttl: Duration,
         initial_capacity: Option<usize>,
-    ) -> &mut Builder {
+    ) -> &mut ConfigBuilder {
         self.cache_config = CacheConfig {
             enable_cache: true,
             ttl: Some(ttl),
@@ -80,7 +117,7 @@ impl Builder {
         self
     }
 
-    pub fn with_buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
+    pub fn with_buffer_size(&mut self, buffer_size: usize) -> &mut ConfigBuilder {
         self.buffer_size = Some(buffer_size);
         self
     }

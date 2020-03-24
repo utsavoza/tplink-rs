@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = tplink::config::Builder::for_host([192, 168, 1, 107])
+    let config = tplink::Config::for_host([192, 168, 1, 107])
         .with_port(9999)
         .with_read_timeout(Duration::from_secs(5))
         .with_write_timeout(Duration::from_secs(5))

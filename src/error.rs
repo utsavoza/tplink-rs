@@ -1,10 +1,9 @@
 use std::error::Error as StdError;
 use std::fmt;
 use std::io;
-use std::result;
 
 /// A type alias for `Result<T, tplink::Error>`.
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Errors that may occur while interacting with a device.
 #[derive(Debug)]

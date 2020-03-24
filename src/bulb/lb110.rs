@@ -36,9 +36,7 @@ impl LB110 {
     where
         A: Into<IpAddr>,
     {
-        let proto = proto::Builder::default(host);
-        let cache = Some(RefCell::new(Cache::with_ttl(Duration::from_secs(3))));
-        LB110::with(proto, cache)
+        LB110::with_config(Config::for_host(host).build())
     }
 
     pub(super) fn with_config(config: Config) -> LB110 {
@@ -55,7 +53,7 @@ impl LB110 {
 
         let cache_config = config.cache_config;
         let cache = if cache_config.enable_cache {
-            let ttl = cache_config.ttl.unwrap_or(Duration::from_secs(3));
+            let ttl = cache_config.ttl.unwrap();
             let cache = cache_config.initial_capacity.map_or_else(
                 || Cache::with_ttl(ttl),
                 |capacity| Cache::with_ttl_and_capacity(ttl, capacity),
