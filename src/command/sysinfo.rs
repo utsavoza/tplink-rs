@@ -4,6 +4,7 @@ use crate::proto::{Proto, Request};
 
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 /// The `SysInfo` trait represents devices that are capable of
 /// returning their system information.
@@ -16,25 +17,31 @@ pub trait SysInfo {
 }
 
 pub(crate) struct SystemInfo<T> {
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
     _ghost: PhantomData<T>,
 }
 
 impl<T> SystemInfo<T> {
-    pub(crate) fn new() -> SystemInfo<T> {
+    pub(crate) fn new(proto: Rc<Proto>, cache: Rc<ResponseCache>) -> SystemInfo<T> {
         SystemInfo {
+            proto,
+            cache,
             _ghost: PhantomData,
         }
     }
 }
 
 impl<T: DeserializeOwned> SystemInfo<T> {
-    pub(crate) fn get_sysinfo(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<T> {
+    pub(crate) fn get_sysinfo(&self) -> Result<T> {
         let request = Request::new("system", "get_sysinfo", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("(system) {:?}", response);
@@ -42,7 +49,7 @@ impl<T: DeserializeOwned> SystemInfo<T> {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))

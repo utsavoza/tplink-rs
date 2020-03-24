@@ -3,12 +3,13 @@ use crate::proto::Request;
 
 use serde_json::Value;
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
-pub type ResponseCache = Option<Cache<Request, Value>>;
+pub type ResponseCache = Option<RefCell<Cache<Request, Value>>>;
 
 enum Status {
     NotFound,

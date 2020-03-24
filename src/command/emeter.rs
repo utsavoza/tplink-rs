@@ -4,6 +4,7 @@ use crate::proto::{Proto, Request};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::rc::Rc;
 
 pub trait Emeter {
     fn get_emeter_realtime(&mut self) -> Result<RealtimeStats>;
@@ -14,26 +15,28 @@ pub trait Emeter {
 
 pub(crate) struct EmeterStats {
     ns: String,
+    proto: Rc<Proto>,
+    cache: Rc<ResponseCache>,
 }
 
 impl EmeterStats {
-    pub(crate) fn new(ns: &str) -> EmeterStats {
+    pub(crate) fn new(ns: &str, proto: Rc<Proto>, cache: Rc<ResponseCache>) -> EmeterStats {
         EmeterStats {
             ns: String::from(ns),
+            proto,
+            cache,
         }
     }
 
-    pub(crate) fn get_realtime(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-    ) -> Result<RealtimeStats> {
+    pub(crate) fn get_realtime(&self) -> Result<RealtimeStats> {
         let request = Request::new(&self.ns, "get_realtime", None);
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("({}) {:?}", self.ns, response);
@@ -41,29 +44,25 @@ impl EmeterStats {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(crate) fn get_day_stats(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        month: u32,
-        year: u32,
-    ) -> Result<DayStats> {
+    pub(crate) fn get_day_stats(&self, month: u32, year: u32) -> Result<DayStats> {
         let request = Request::new(
             &self.ns,
             "get_daystat",
             Some(json!({ "month": month , "year": year})),
         );
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("({}) {:?}", self.ns, response);
@@ -71,24 +70,21 @@ impl EmeterStats {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(crate) fn get_month_stats(
-        &self,
-        proto: &Proto,
-        cache: &mut ResponseCache,
-        year: u32,
-    ) -> Result<MonthStats> {
+    pub(crate) fn get_month_stats(&self, year: u32) -> Result<MonthStats> {
         let request = Request::new(&self.ns, "get_monthstat", Some(json!({ "year": year })));
 
-        let response = if let Some(cache) = cache {
-            cache.get_or_insert_with(request, |r| proto.send_request(r))?
+        let response = if let Some(cache) = self.cache.as_ref() {
+            cache
+                .borrow_mut()
+                .get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
-            proto.send_request(&request)?
+            self.proto.send_request(&request)?
         };
 
         log::trace!("({}) {:?}", self.ns, response);
@@ -96,18 +92,20 @@ impl EmeterStats {
         Ok(serde_json::from_value(response).unwrap_or_else(|err| {
             panic!(
                 "invalid response from host with address {}: {}",
-                proto.host(),
+                self.proto.host(),
                 err
             )
         }))
     }
 
-    pub(crate) fn erase_stats(&self, proto: &Proto, cache: &mut ResponseCache) -> Result<()> {
-        if let Some(cache) = cache {
-            cache.retain(|k, _| k.target != self.ns)
+    pub(crate) fn erase_stats(&self) -> Result<()> {
+        if let Some(cache) = self.cache.as_ref() {
+            cache.borrow_mut().retain(|k, _| k.target != self.ns)
         }
 
-        let response = proto.send_request(&Request::new(&self.ns, "erase_emeter_stat", None))?;
+        let response =
+            self.proto
+                .send_request(&Request::new(&self.ns, "erase_emeter_stat", None))?;
 
         log::debug!("{:?}", response);
 

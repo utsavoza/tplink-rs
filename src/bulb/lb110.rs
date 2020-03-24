@@ -1,6 +1,7 @@
 use super::lighting::{LightState, Lighting, HSV};
 use crate::cache::{Cache, ResponseCache};
 use crate::cloud::{Cloud, CloudInfo, CloudSettings};
+use crate::config::Config;
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, EmeterStats, MonthStats, RealtimeStats};
 use crate::error::{self, Result};
@@ -13,21 +14,21 @@ use crate::wlan::{AccessPoint, Netif, Wlan};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::cell::RefCell;
 use std::fmt;
 use std::net::IpAddr;
+use std::rc::Rc;
 use std::time::Duration;
 
 /// A TP-Link Wi-Fi LED Smart Bulb (LB110).
 pub struct LB110 {
-    proto: Proto,
     system: System,
     lighting: Lighting,
-    time_setting: TimeSettings,
-    cloud_setting: CloudSettings,
+    time_settings: TimeSettings,
+    cloud_settings: CloudSettings,
     netif: Netif,
     emeter: EmeterStats,
     sysinfo: SystemInfo<LB110Info>,
-    cache: ResponseCache,
 }
 
 impl LB110 {
@@ -35,16 +36,56 @@ impl LB110 {
     where
         A: Into<IpAddr>,
     {
+        LB110::with_config(Config::for_host(host).build())
+    }
+
+    pub(super) fn with_config(config: Config) -> LB110 {
+        let addr = config.addr;
+        let read_timeout = config.read_timeout;
+        let write_timeout = config.write_timeout;
+        let buffer_size = config.buffer_size;
+
+        let proto = proto::Builder::new(addr)
+            .read_timeout(read_timeout)
+            .write_timeout(write_timeout)
+            .buffer_size(buffer_size)
+            .build();
+
+        let cache_config = config.cache_config;
+        let cache = if cache_config.enable_cache {
+            let ttl = cache_config.ttl.unwrap();
+            let cache = cache_config.initial_capacity.map_or_else(
+                || Cache::with_ttl(ttl),
+                |capacity| Cache::with_ttl_and_capacity(ttl, capacity),
+            );
+            Some(RefCell::new(cache))
+        } else {
+            None
+        };
+
+        LB110::with(proto, cache)
+    }
+
+    fn with(proto: Proto, cache: ResponseCache) -> LB110 {
+        let proto = Rc::new(proto);
+        let cache = Rc::new(cache);
+
         LB110 {
-            proto: proto::Builder::default(host),
-            system: System::new("smartlife.iot.common.system"),
-            lighting: Lighting::new("smartlife.iot.smartbulb.lightingservice"),
-            time_setting: TimeSettings::new("smartlife.iot.common.timesetting"),
-            cloud_setting: CloudSettings::new("smartlife.iot.common.cloud"),
-            emeter: EmeterStats::new("smartlife.iot.common.emeter"),
-            netif: Netif::new(),
-            sysinfo: SystemInfo::new(),
-            cache: Some(Cache::with_ttl(Duration::from_secs(3))),
+            system: System::new("smartlife.iot.common.system", proto.clone(), cache.clone()),
+            lighting: Lighting::new(
+                "smartlife.iot.smartbulb.lightingservice",
+                proto.clone(),
+                cache.clone(),
+            ),
+            cloud_settings: CloudSettings::new(
+                "smartlife.iot.common.cloud",
+                proto.clone(),
+                cache.clone(),
+            ),
+            emeter: EmeterStats::new("smartlife.iot.common.emeter", proto.clone(), cache.clone()),
+            time_settings: TimeSettings::new("smartlife.iot.common.timesetting", proto.clone()),
+            netif: Netif::new(proto.clone()),
+            sysinfo: SystemInfo::new(proto, cache),
         }
     }
 
@@ -85,9 +126,9 @@ impl LB110 {
             .map(|sysinfo| sysinfo.is_variable_color_temp())
     }
 
-    pub(super) fn is_on(&mut self) -> Result<bool> {
+    pub(super) fn is_on(&self) -> Result<bool> {
         self.lighting
-            .get_light_state(&self.proto, &mut self.cache)
+            .get_light_state()
             .map(|light_state| light_state.is_on())
     }
 
@@ -108,18 +149,12 @@ impl LB110 {
                 && util::u32_in_range(saturation, 0, 100)
                 && util::u32_in_range(value, 0, 100)
             {
-                self.lighting
-                    .set_light_state(
-                        &self.proto,
-                        &mut self.cache,
-                        Some(json!({
-                            "hue": hue,
-                            "saturation": saturation,
-                            "value": value,
-                            "color_temp": 0,
-                        })),
-                    )
-                    .map(|_| {})
+                self.lighting.set_light_state(Some(json!({
+                    "hue": hue,
+                    "saturation": saturation,
+                    "value": value,
+                    "color_temp": 0,
+                })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_hsv: ({}°, {}%, {}%) (valid range: hue(0-360°), saturation(0-100%), value(0-100%))",
@@ -141,12 +176,7 @@ impl LB110 {
         if is_color {
             if util::u32_in_range(hue, 0, 360) {
                 self.lighting
-                    .set_light_state(
-                        &self.proto,
-                        &mut self.cache,
-                        Some(json!({ "hue": hue, "color_temp": 0 })),
-                    )
-                    .map(|_| {})
+                    .set_light_state(Some(json!({ "hue": hue, "color_temp": 0 })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_hue: {}° (valid range: 0-360°)",
@@ -167,7 +197,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
         if is_color {
             self.lighting
-                .get_light_state(&self.proto, &mut self.cache)
+                .get_light_state()
                 .map(|light_state| light_state.hsv().hue())
         } else {
             Err(error::unsupported_operation(&format!("{} hue", model)))
@@ -181,12 +211,7 @@ impl LB110 {
         if is_color {
             if util::u32_in_range(saturation, 0, 100) {
                 self.lighting
-                    .set_light_state(
-                        &self.proto,
-                        &mut self.cache,
-                        Some(json!({ "saturation": saturation, "color_temp": 0 })),
-                    )
-                    .map(|_| {})
+                    .set_light_state(Some(json!({ "saturation": saturation, "color_temp": 0 })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_saturation: {}% (valid range: 0-100%)",
@@ -207,7 +232,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_color(), sysinfo.model))?;
         if is_color {
             self.lighting
-                .get_light_state(&self.proto, &mut self.cache)
+                .get_light_state()
                 .map(|light_state| light_state.hsv().saturation())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -224,12 +249,7 @@ impl LB110 {
         if is_dimmable {
             if util::u32_in_range(brightness, 0, 100) {
                 self.lighting
-                    .set_light_state(
-                        &self.proto,
-                        &mut self.cache,
-                        Some(json!({ "brightness": brightness })),
-                    )
-                    .map(|_| {})
+                    .set_light_state(Some(json!({ "brightness": brightness })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_brightness: {}% (valid range: 0-100%)",
@@ -250,7 +270,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_dimmable(), sysinfo.model))?;
         if is_dimmable {
             self.lighting
-                .get_light_state(&self.proto, &mut self.cache)
+                .get_light_state()
                 .map(|light_state| light_state.hsv().value())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -268,12 +288,7 @@ impl LB110 {
             let range = util::valid_color_temp_range(&model);
             if util::u32_in_range(color_temp, range.0, range.1) {
                 self.lighting
-                    .set_light_state(
-                        &self.proto,
-                        &mut self.cache,
-                        Some(json!({ "color_temp": color_temp })),
-                    )
-                    .map(|_| {})
+                    .set_light_state(Some(json!({ "color_temp": color_temp })))
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} set_color_temp: {} (valid range: {}-{}K)",
@@ -294,7 +309,7 @@ impl LB110 {
             .map(|sysinfo| (sysinfo.is_variable_color_temp(), sysinfo.model))?;
         if is_variable_color_temp {
             self.lighting
-                .get_light_state(&self.proto, &mut self.cache)
+                .get_light_state()
                 .map(|light_state| light_state.hsv().color_temp())
         } else {
             Err(error::unsupported_operation(&format!(
@@ -307,58 +322,53 @@ impl LB110 {
 
 impl Device for LB110 {
     fn turn_on(&mut self) -> Result<()> {
-        self.lighting
-            .set_light_state(&self.proto, &mut self.cache, Some(json!({ "on_off": 1 })))
+        self.lighting.set_light_state(Some(json!({ "on_off": 1 })))
     }
 
     fn turn_off(&mut self) -> Result<()> {
-        self.lighting
-            .set_light_state(&self.proto, &mut self.cache, Some(json!({ "on_off": 0 })))
+        self.lighting.set_light_state(Some(json!({ "on_off": 0 })))
     }
 }
 
 impl Sys for LB110 {
     fn reboot(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reboot(&self.proto, &mut self.cache, delay)
+        self.system.reboot(delay)
     }
 
     fn factory_reset(&mut self, delay: Option<Duration>) -> Result<()> {
-        self.system.reset(&self.proto, &mut self.cache, delay)
+        self.system.reset(delay)
     }
 }
 
 impl Time for LB110 {
     fn time(&mut self) -> Result<DeviceTime> {
-        self.time_setting.get_time(&self.proto)
+        self.time_settings.get_time()
     }
 
     fn timezone(&mut self) -> Result<DeviceTimeZone> {
-        self.time_setting.get_timezone(&self.proto)
+        self.time_settings.get_timezone()
     }
 }
 
 impl Cloud for LB110 {
     fn get_cloud_info(&mut self) -> Result<CloudInfo> {
-        self.cloud_setting.get_info(&self.proto, &mut self.cache)
+        self.cloud_settings.get_info()
     }
 
     fn bind(&mut self, username: &str, password: &str) -> Result<()> {
-        self.cloud_setting
-            .bind(&self.proto, &mut self.cache, username, password)
+        self.cloud_settings.bind(username, password)
     }
 
     fn unbind(&mut self) -> Result<()> {
-        self.cloud_setting.unbind(&self.proto, &mut self.cache)
+        self.cloud_settings.unbind()
     }
 
     fn get_firmware_list(&mut self) -> Result<Vec<String>> {
-        self.cloud_setting
-            .get_firmware_list(&self.proto, &mut self.cache)
+        self.cloud_settings.get_firmware_list()
     }
 
     fn set_server_url(&mut self, url: &str) -> Result<()> {
-        self.cloud_setting
-            .set_server_url(&self.proto, &mut self.cache, url)
+        self.cloud_settings.set_server_url(url)
     }
 }
 
@@ -368,7 +378,7 @@ impl Wlan for LB110 {
         refresh: bool,
         timeout: Option<Duration>,
     ) -> Result<Vec<AccessPoint>> {
-        self.netif.get_scan_info(&self.proto, refresh, timeout)
+        self.netif.get_scan_info(refresh, timeout)
     }
 }
 
@@ -379,7 +389,7 @@ impl Emeter for LB110 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.get_realtime(&self.proto, &mut self.cache)
+            self.emeter.get_realtime()
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_realtime",
@@ -394,8 +404,7 @@ impl Emeter for LB110 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter
-                .get_month_stats(&self.proto, &mut self.cache, year)
+            self.emeter.get_month_stats(year)
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} get_emeter_month_stats",
@@ -411,8 +420,7 @@ impl Emeter for LB110 {
 
         if has_emeter {
             if util::u32_in_range(month, 1, 12) {
-                self.emeter
-                    .get_day_stats(&self.proto, &mut self.cache, month, year)
+                self.emeter.get_day_stats(month, year)
             } else {
                 Err(error::invalid_parameter(&format!(
                     "{} get_emeter_day_stats: month={} (valid range: 1-12)",
@@ -433,7 +441,7 @@ impl Emeter for LB110 {
             .map(|sysinfo| (sysinfo.has_emeter(), sysinfo.model))?;
 
         if has_emeter {
-            self.emeter.erase_stats(&self.proto, &mut self.cache)
+            self.emeter.erase_stats()
         } else {
             Err(error::unsupported_operation(&format!(
                 "{} erase_emeter_stats",
@@ -447,7 +455,7 @@ impl SysInfo for LB110 {
     type Info = LB110Info;
 
     fn sysinfo(&mut self) -> Result<Self::Info> {
-        self.sysinfo.get_sysinfo(&self.proto, &mut self.cache)
+        self.sysinfo.get_sysinfo()
     }
 }
 

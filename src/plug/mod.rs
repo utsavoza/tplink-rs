@@ -4,6 +4,7 @@ pub mod timer;
 pub use self::hs100::{Location, HS100};
 use self::timer::{Rule, RuleList, Timer};
 use crate::cloud::{Cloud, CloudInfo};
+use crate::config::Config;
 use crate::device::Device;
 use crate::emeter::{DayStats, Emeter, MonthStats, RealtimeStats};
 use crate::error::Result;
@@ -270,6 +271,12 @@ impl Plug<HS100> {
     {
         Plug {
             device: HS100::new(host),
+        }
+    }
+
+    pub fn with_config(config: Config) -> Plug<HS100> {
+        Plug {
+            device: HS100::with_config(config),
         }
     }
 

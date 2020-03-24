@@ -31,3 +31,7 @@ path = "examples/plug.rs"
 [[example]]
 name = "discover"
 path = "examples/discover.rs"
+
+[[example]]
+name = "config"
+path = "examples/config.rs"
