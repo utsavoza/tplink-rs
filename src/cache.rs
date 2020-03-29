@@ -124,7 +124,7 @@ where
     K: Hash + Eq,
     V: Clone,
 {
-    pub fn get_or_insert_with<F>(&mut self, key: K, f: F) -> Result<V>
+    pub fn try_get_or_insert_with<F>(&mut self, key: K, f: F) -> Result<V>
     where
         F: Fn(&K) -> Result<V>,
         V: Clone,

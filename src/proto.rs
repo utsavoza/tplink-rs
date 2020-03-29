@@ -72,18 +72,6 @@ impl Builder {
         }
     }
 
-    pub fn default<A>(addr: A) -> Proto
-    where
-        A: Into<IpAddr>,
-    {
-        Self::new(SocketAddr::new(addr.into(), 9999))
-            .buffer_size(4096)
-            .read_timeout(Duration::from_secs(3))
-            .write_timeout(Duration::from_secs(3))
-            .broadcast(false)
-            .build()
-    }
-
     pub fn buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
         self.buffer_size = buffer_size;
         self

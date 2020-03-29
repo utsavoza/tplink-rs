@@ -36,7 +36,7 @@ impl CloudSettings {
         let response = if let Some(cache) = self.cache.as_ref() {
             cache
                 .borrow_mut()
-                .get_or_insert_with(request, |r| self.proto.send_request(r))?
+                .try_get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
             self.proto.send_request(&request)?
         };
@@ -88,7 +88,7 @@ impl CloudSettings {
         let response = if let Some(cache) = self.cache.as_ref() {
             cache
                 .borrow_mut()
-                .get_or_insert_with(request, |r| self.proto.send_request(r))?
+                .try_get_or_insert_with(request, |r| self.proto.send_request(r))?
         } else {
             self.proto.send_request(&request)?
         };

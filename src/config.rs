@@ -11,11 +11,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn for_host<A>(addr: A) -> ConfigBuilder
+    pub fn for_host<A>(addr: A) -> Builder
     where
         A: Into<IpAddr>,
     {
-        ConfigBuilder::new(addr)
+        Builder::new(addr)
     }
 
     pub fn addr(&self) -> SocketAddr {
@@ -48,7 +48,7 @@ impl Config {
 }
 
 #[derive(Debug)]
-pub struct ConfigBuilder {
+pub struct Builder {
     host: IpAddr,
     port: u16,
     read_timeout: Option<Duration>,
@@ -74,12 +74,12 @@ impl Default for CacheConfig {
     }
 }
 
-impl ConfigBuilder {
-    pub fn new<A>(addr: A) -> ConfigBuilder
+impl Builder {
+    pub fn new<A>(addr: A) -> Builder
     where
         A: Into<IpAddr>,
     {
-        ConfigBuilder {
+        Builder {
             host: addr.into(),
             port: 9999,
             read_timeout: None,
@@ -89,17 +89,17 @@ impl ConfigBuilder {
         }
     }
 
-    pub fn with_port(&mut self, port: u16) -> &mut ConfigBuilder {
+    pub fn with_port(&mut self, port: u16) -> &mut Builder {
         self.port = port;
         self
     }
 
-    pub fn with_read_timeout(&mut self, duration: Duration) -> &mut ConfigBuilder {
+    pub fn with_read_timeout(&mut self, duration: Duration) -> &mut Builder {
         self.read_timeout = Some(duration);
         self
     }
 
-    pub fn with_write_timeout(&mut self, duration: Duration) -> &mut ConfigBuilder {
+    pub fn with_write_timeout(&mut self, duration: Duration) -> &mut Builder {
         self.write_timeout = Some(duration);
         self
     }
@@ -108,7 +108,7 @@ impl ConfigBuilder {
         &mut self,
         ttl: Duration,
         initial_capacity: Option<usize>,
-    ) -> &mut ConfigBuilder {
+    ) -> &mut Builder {
         self.cache_config = CacheConfig {
             enable_cache: true,
             ttl: Some(ttl),
@@ -117,7 +117,7 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn with_buffer_size(&mut self, buffer_size: usize) -> &mut ConfigBuilder {
+    pub fn with_buffer_size(&mut self, buffer_size: usize) -> &mut Builder {
         self.buffer_size = Some(buffer_size);
         self
     }
