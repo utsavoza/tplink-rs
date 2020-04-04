@@ -13,6 +13,7 @@ use crate::sysinfo::SysInfo;
 use crate::time::{DeviceTime, DeviceTimeZone, Time};
 use crate::wlan::{AccessPoint, Wlan};
 
+use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
@@ -449,5 +450,11 @@ impl Plug<HS100> {
 
     pub fn has_emeter(&mut self) -> Result<bool> {
         self.device.has_emeter()
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Plug<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.device.fmt(f)
     }
 }

@@ -13,6 +13,7 @@ use crate::sysinfo::SysInfo;
 use crate::time::{DeviceTime, DeviceTimeZone, Time};
 use crate::wlan::{AccessPoint, Wlan};
 
+use std::fmt;
 use std::net::IpAddr;
 use std::time::Duration;
 
@@ -586,5 +587,11 @@ impl Bulb<LB110> {
     /// ```
     pub fn color_temp(&mut self) -> Result<u32> {
         self.device.color_temp()
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Bulb<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.device.fmt(f)
     }
 }
